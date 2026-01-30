@@ -6,7 +6,7 @@ const getStoredTunnel = () => {
     }
 };
 
-const DEFAULT_TUNNEL = 'https://warm-ads-kick.loca.lt'; // Fallback
+const DEFAULT_TUNNEL = 'https://tricky-aliens-live.loca.lt'; // Fallback
 const LOCAL_BACKEND = 'http://localhost:5000';
 
 export const getApiBase = () => {
