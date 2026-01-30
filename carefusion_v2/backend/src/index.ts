@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import aiRoutes from './routes/ai.js';
 import userRoutes from './routes/user.js';
+import patientRoutes from './routes/patients.js';
+
 
 dotenv.config();
 
@@ -19,6 +21,8 @@ app.use(express.json());
 app.use('/api/v2/auth', authRoutes);
 app.use('/api/v2/ai', aiRoutes);
 app.use('/api/v2/users', userRoutes);
+app.use('/api/v2/patients', patientRoutes);
+
 
 // Root Health Check
 app.get('/', (req, res) => {

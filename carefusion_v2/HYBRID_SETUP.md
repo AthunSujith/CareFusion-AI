@@ -25,7 +25,7 @@ Since your system is acting as the server, it needs a public URL.
 4.  **Deploy**.
 
 ## Phase 3: Access Anywhere
-*   Your website is now at `carefusionai.vercel.app` (or your custom domain).
+*   Your website is now at `care-fusion-ai.vercel.app` (or your custom domain).
 *   When a doctor uploads an image or DNA file on their phone, the request travels:
     `Doctor's Phone` -> `Vercel` -> `Ngrok Tunnel` -> `YOUR LOCAL MACHINE`
 *   Your local machine processes the AI and sends the result back to the phone.

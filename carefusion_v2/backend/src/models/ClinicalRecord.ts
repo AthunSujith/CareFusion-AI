@@ -38,7 +38,8 @@ export interface IClinicalRecord extends Document {
 
 const ClinicalRecordSchema: Schema = new Schema({
     userId: { type: String, required: true, index: true },
-    patientId: { type: String, required: true, index: true },
+    patientId: { type: String, required: true, index: true, ref: 'Patient' },
+    patientName: String, // Denormalized for quick view
     recordType: {
         type: String,
         required: true,

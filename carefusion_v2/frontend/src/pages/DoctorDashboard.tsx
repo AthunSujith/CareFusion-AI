@@ -35,6 +35,8 @@ import {
     Terminal
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import FileUpload from '../components/FileUpload';
+
 
 interface Patient {
     id: string;
@@ -883,25 +885,19 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
                             ))
                         }
 
-                        {activeTab === 'history' && (
-                            <div className="space-y-10">
+                        {activeTab === 'documents' && (
+                            <div className="space-y-8">
                                 <section className="space-y-6">
-                                    <h3 className="text-xl font-black text-black uppercase tracking-tight">Timeline of Intervention</h3>
-                                    <div className="space-y-0 relative before:absolute before:left-8 before:top-4 before:bottom-4 before:w-1 before:bg-[#D9CBC2]">
-                                        {[
-                                            { date: 'Jan 15, 2026', event: 'Primary Diagnosis: Stage II Carcinoma' },
-                                            { date: 'Dec 20, 2025', event: 'Biometric Drift Detected in Vitals' },
-                                            { date: 'Nov 12, 2025', event: 'Routine Genomic Manifesting' }
-                                        ].map((e, i) => (
-                                            <div key={i} className="pl-20 py-6 relative">
-                                                <div className="absolute left-6 top-8 w-5 h-5 rounded-full bg-[#112250] border-4 border-white shadow-md z-10" />
-                                                <div className="p-6 bg-white border-2 border-[#D9CBC2] rounded-2xl shadow-sm">
-                                                    <p className="text-[10px] font-black text-black opacity-40 uppercase tracking-[0.2em] mb-1">{e.date}</p>
-                                                    <h5 className="font-bold text-black">{e.event}</h5>
-                                                </div>
-                                            </div>
-                                        ))}
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xl font-black text-black uppercase tracking-tight">Clinical Document Vault</h3>
+                                        <span className="text-xs font-bold text-black opacity-40 uppercase tracking-widest">Storage Node: LOCAL_STORAGE_v2</span>
                                     </div>
+                                    <FileUpload
+                                        patientId={patient.id || CURRENT_PATIENT_ID}
+                                        onUploadSuccess={() => {
+                                            fetchRecords(); // Refresh the list if needed
+                                        }}
+                                    />
                                 </section>
                             </div>
                         )}
@@ -911,6 +907,7 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
         </motion.section>
     );
 };
+
 
 const DossierNavButton = ({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) => (
     <button
