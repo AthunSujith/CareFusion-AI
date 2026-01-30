@@ -124,7 +124,8 @@ const DoctorDashboard = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer clinical-access-token-2026'
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
                 },
                 body: JSON.stringify({ userId: CURRENT_PATIENT_ID, textInput: inputText })
             });
@@ -978,11 +979,32 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <button
-                                            onClick={() => record._id && window.open(`${getApiBase()}${API_ENDPOINTS.AI}/records/${record._id}/pdf`, '_blank')}
+                                            onClick={async () => {
+                                                try {
+                                                    const baseUrl = getApiBase();
+                                                    const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/${record._id}/pdf`, {
+                                                        headers: {
+                                                            'Authorization': 'Bearer clinical-access-token-2026',
+                                                            'bypass-tunnel-reminder': 'true'
+                                                        }
+                                                    });
+                                                    if (!response.ok) throw new Error('Failed to generate report');
+                                                    const blob = await response.blob();
+                                                    const downloadUrl = window.URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.href = downloadUrl;
+                                                    a.download = `clinical-report-${record._id}.txt`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    a.remove();
+                                                } catch (error: any) {
+                                                    console.error('Download error:', error);
+                                                    alert(`❌ Download Error: ${error.message}`);
+                                                }
+                                            }}
                                             className="p-3 rounded-xl bg-[#F5F0E9] text-black opacity-0 group-hover:opacity-100 transition-all hover:bg-[#E0C58F]"
                                             title="Download Report"
                                         >
-
                                             <Download size={18} />
                                         </button>
                                         <ChevronRight className="text-[#D9CBC2] group-hover:text-black transition-colors" size={24} />
