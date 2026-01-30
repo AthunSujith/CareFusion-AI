@@ -1,0 +1,160 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-main: "Inter", sans-serif;
+  --font-display: "Outfit", sans-serif;
+
+  /* Luxury Sapphire Palette - Exact Image Match */
+  --sapphire: #3C507D;
+  --royal-blue: #112250;
+  --quicksand: #E0C58F;
+  --swan-wing: #F5F0E9;
+  --shellstone: #D9CBC2;
+
+  --color-bg-deep: var(--swan-wing);
+  --color-primary: var(--royal-blue);
+  --color-primary-light: var(--sapphire);
+  --color-secondary: var(--quicksand);
+  --color-accent: var(--quicksand);
+
+  --color-text-main: #000000;
+  /* Forced Black Text */
+  --color-text-muted: #111111;
+  --color-text-light: #222222;
+  --color-border: rgba(17, 34, 80, 0.2);
+
+  --glass-bg: rgba(245, 240, 233, 0.9);
+  --glass-border: var(--shellstone);
+  --glass-blur: 20px;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-main);
+    background-color: var(--color-bg-deep);
+    color: var(--color-text-main);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--swan-wing);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  label,
+  li,
+  input,
+  textarea {
+    color: #000000 !important;
+  }
+
+  /* Accessibility: Force larger tap targets and readable text */
+  button,
+  a {
+    cursor: pointer;
+  }
+}
+
+/* "Universal Access" Glass Cards - Prioritizing Clarity */
+.glass-card {
+  background-color: var(--glass-bg);
+  border: 2px solid var(--glass-border);
+  border-radius: 2rem;
+  overflow: hidden;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.05),
+    0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-primary-light);
+}
+
+/* Modern Accessible Buttons */
+.btn-premium {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem 2.5rem;
+  /* Larger padding for accessibility */
+  border-radius: 1.5rem;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  /* Standard readable size */
+  letter-spacing: 0.01em;
+  text-transform: none;
+  /* Avoid all-caps for better reading speed */
+}
+
+.btn-primary {
+  background-color: var(--royal-blue);
+  color: var(--quicksand) !important;
+  box-shadow: 0 4px 20px 0 rgba(17, 34, 80, 0.4);
+  border: 1px solid var(--shellstone);
+}
+
+.btn-primary:hover {
+  background-color: #0a1435;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background-color: white;
+  border: 2px solid #e2e8f0;
+  color: var(--color-text-main);
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-primary-light);
+  background-color: #f8fafc;
+}
+
+/* Typography Utility for the "Interesting & Unique" Look */
+.hero-text {
+  font-size: clamp(3rem, 7vw, 6rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+}
+
+.section-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  border: 3px solid #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
