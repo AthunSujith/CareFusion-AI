@@ -1,3 +1,4 @@
+import { Router } from 'express';
 import Patient from '../models/Patient.js';
 import { initializePatientStorage } from '../utils/storage.js';
 import { upload } from '../utils/upload.js';

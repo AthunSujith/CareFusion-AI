@@ -36,6 +36,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FileUpload from '../components/FileUpload';
+import { getApiBase, API_ENDPOINTS, setApiBase } from '../utils/apiConfig';
+
 
 
 interface Patient {
@@ -53,15 +55,17 @@ interface Message {
     richData?: any;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://spotty-ravens-build.loca.lt/api/v2/ai';
-const LOCAL_BACKEND = 'http://localhost:5000/api/v2/ai';
 const CURRENT_USER_ID = 'dr-sarah-chen';
 const CURRENT_PATIENT_ID = 'SW-928';
+
 
 const DoctorDashboard = () => {
     const [view, setView] = useState<'overview' | 'linkage' | 'workspace' | 'history' | 'dossier'>('overview');
     const [activeModule, setActiveModule] = useState('symptoms');
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+    const [showBridgeSettings, setShowBridgeSettings] = useState(false);
+    const [newTunnelUrl, setNewTunnelUrl] = useState('');
+
 
     // Handshake/Sync
     const [syncCode, setSyncCode] = useState('');
@@ -115,7 +119,7 @@ const DoctorDashboard = () => {
         setIsThinking(true);
 
         try {
-            const url = window.location.hostname === 'localhost' ? `${LOCAL_BACKEND}/module1/analyze` : `${API_BASE}/module1/analyze`;
+            const url = `${getApiBase()}${API_ENDPOINTS.AI}/module1/analyze`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -181,10 +185,13 @@ const DoctorDashboard = () => {
         formData.append('audio_file', blob, 'clinic_note.webm');
 
         try {
-            const url = window.location.hostname === 'localhost' ? `${LOCAL_BACKEND}/module1/analyze` : `${API_BASE}/module1/analyze`;
+            const url = `${getApiBase()}${API_ENDPOINTS.AI}/module1/analyze`;
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer clinical-access-token-2026' },
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                },
                 body: formData
             });
             const data = await response.json();
@@ -196,9 +203,9 @@ const DoctorDashboard = () => {
                 richData: data.result
             };
             setMessages(prev => [...prev, botMsg]);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Vocal analysis failure:", error);
-            alert("❌ Audio Analysis Linkage Error: Could not reach the Clinical Audio Engine.");
+            alert(`❌ Audio Analysis Linkage Error: ${error.message || 'Could not reach the Clinical Audio Engine.'}`);
         } finally {
             setIsThinking(false);
         }
@@ -216,17 +223,20 @@ const DoctorDashboard = () => {
         formData.append('medical_image', file);
 
         try {
-            const url = window.location.hostname === 'localhost' ? `${LOCAL_BACKEND}/module2/scan` : `${API_BASE}/module2/scan`;
+            const url = `${getApiBase()}${API_ENDPOINTS.AI}/module2/scan`;
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer clinical-access-token-2026' },
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                },
                 body: formData
             });
             const data = await response.json();
             setAnalysisResult(data);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Upload failed", error);
-            alert("❌ Imaging Scan Error: Failed to transmit payload to the Radiology Processor.");
+            alert(`❌ Imaging Scan Error: ${error.message || 'Failed to transmit payload to the Radiology Processor.'}`);
         } finally {
             setIsUploading(false);
         }
@@ -250,10 +260,13 @@ const DoctorDashboard = () => {
         formData.append('vcf_file', vcfFile);
 
         try {
-            const url = window.location.hostname === 'localhost' ? `${LOCAL_BACKEND}/module3/dna` : `${API_BASE}/module3/dna`;
+            const url = `${getApiBase()}${API_ENDPOINTS.AI}/module3/dna`;
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer clinical-access-token-2026' },
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                },
                 body: formData
             });
             const data = await response.json();
@@ -268,12 +281,13 @@ const DoctorDashboard = () => {
 
     const handleSaveImagingRecord = async (observations: string) => {
         try {
-            const baseUrl = window.location.hostname === 'localhost' ? LOCAL_BACKEND : API_BASE;
-            const response = await fetch(`${baseUrl}/records/imaging/save`, {
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/imaging/save`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer clinical-access-token-2026'
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
                 },
                 body: JSON.stringify({
                     userId: CURRENT_USER_ID,
@@ -288,21 +302,24 @@ const DoctorDashboard = () => {
             const data = await response.json();
             if (data.status === 'success') {
                 alert('✅ Imaging record saved successfully!');
+            } else {
+                alert(`❌ Failed to save record: ${data.message || 'Unknown Server Error'}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Save error:', error);
-            alert('❌ Failed to save record');
+            alert(`❌ Connection Error: ${error.message || 'Failed to reach clinical node.'}`);
         }
     };
 
     const handleSaveGenomicsRecord = async (interpretation: string, variants: string[], summary: string) => {
         try {
-            const baseUrl = window.location.hostname === 'localhost' ? LOCAL_BACKEND : API_BASE;
-            const response = await fetch(`${baseUrl}/records/genomics/save`, {
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/genomics/save`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer clinical-access-token-2026'
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
                 },
                 body: JSON.stringify({
                     userId: CURRENT_USER_ID,
@@ -316,21 +333,24 @@ const DoctorDashboard = () => {
             const data = await response.json();
             if (data.status === 'success') {
                 alert('✅ Genomics record saved successfully!');
+            } else {
+                alert(`❌ Failed to save record: ${data.message || 'Unknown Server Error'}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Save error:', error);
-            alert('❌ Failed to save record');
+            alert(`❌ Connection Error: ${error.message || 'Failed to reach clinical node.'}`);
         }
     };
 
     const handleSaveSymptomRecord = async (symptomText: string, aiResponse: any) => {
         try {
-            const baseUrl = window.location.hostname === 'localhost' ? LOCAL_BACKEND : API_BASE;
-            const response = await fetch(`${baseUrl}/records/symptom/save`, {
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/symptom/save`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer clinical-access-token-2026'
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
                 },
                 body: JSON.stringify({
                     userId: CURRENT_USER_ID,
@@ -342,10 +362,12 @@ const DoctorDashboard = () => {
             const data = await response.json();
             if (data.status === 'success') {
                 alert('✅ Symptom analysis saved to patient record!');
+            } else {
+                alert(`❌ Failed to save record: ${data.message || 'Unknown Server Error'}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Save error:', error);
-            alert('❌ Failed to save record');
+            alert(`❌ Connection Error: ${error.message || 'Failed to reach clinical node.'}`);
         }
     };
 
@@ -413,12 +435,25 @@ const DoctorDashboard = () => {
                                     <Zap size={16} className="text-[#3C507D]" />
                                     <span className="text-[12px] font-bold text-black uppercase tracking-wide">Physician Terminal Activated</span>
                                 </div>
-                                <div className="space-y-2">
-                                    <h1 className="text-4xl md:text-6xl font-black text-black tracking-tight">
-                                        Medical <span className="text-[#3C507D]">Intelligence.</span>
-                                    </h1>
-                                    <p className="text-2xl text-black font-bold opacity-60">Authenticated: Dr. Sarah Chen</p>
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                    <div className="space-y-2">
+                                        <h1 className="text-4xl md:text-6xl font-black text-black tracking-tight">
+                                            Medical <span className="text-[#3C507D]">Intelligence.</span>
+                                        </h1>
+                                        <p className="text-2xl text-black font-bold opacity-60">Authenticated: Dr. Sarah Chen</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowBridgeSettings(true)}
+                                        className="flex items-center gap-4 px-6 py-4 bg-white border-2 border-[#D9CBC2] rounded-2xl hover:border-[#112250] transition-all group shadow-sm"
+                                    >
+                                        <RefreshCw size={20} className="text-[#112250] group-hover:rotate-180 transition-transform duration-500" />
+                                        <div className="text-left">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Clinical Bridge</p>
+                                            <p className="text-xs font-bold text-black">{getApiBase().includes('localhost') ? 'LOCAL_NODE' : 'HANDSHAKE_ACTIVE'}</p>
+                                        </div>
+                                    </button>
                                 </div>
+
                             </header>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -719,8 +754,74 @@ const DoctorDashboard = () => {
                         />
                     )}
                 </AnimatePresence>
-            </main >
-        </div >
+            </main>
+
+            {/* Bridge Configuration Modal */}
+            <AnimatePresence>
+                {showBridgeSettings && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white border-2 border-[#112250] rounded-[3rem] p-12 max-w-lg w-full shadow-2xl space-y-8"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <RefreshCw className="text-[#112250]" />
+                                    <h3 className="text-2xl font-black text-black">Bridge Settings</h3>
+                                </div>
+                                <button onClick={() => setShowBridgeSettings(false)} className="p-2 hover:bg-[#F5F0E9] rounded-xl transition-all text-black">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <p className="text-sm font-medium text-black/60 leading-relaxed">
+                                Configure the neural handshake pathway between this interface and your Clinical Storage Node.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40">Clinical Node URL</label>
+                                    <input
+                                        type="text"
+                                        placeholder="https://clinical-node.loca.lt"
+                                        className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl p-4 text-sm font-bold outline-none focus:border-[#112250] transition-all text-black"
+                                        value={newTunnelUrl || getApiBase()}
+                                        onChange={(e) => setNewTunnelUrl(e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (newTunnelUrl) setApiBase(newTunnelUrl);
+                                        setShowBridgeSettings(false);
+                                    }}
+                                    className="w-full bg-[#112250] text-[#E0C58F] py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
+                                >
+                                    VERIFY SYSTEM LINKAGE
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        localStorage.removeItem('carefusion_tunnel_url');
+                                        setNewTunnelUrl('');
+                                        setShowBridgeSettings(false);
+                                    }}
+                                    className="w-full text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black transition-colors"
+                                >
+                                    RESET TO DEFAULT
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+
     );
 };
 
@@ -736,10 +837,14 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
         if (!patient) return;
         setIsLoading(true);
         try {
-            const baseUrl = window.location.hostname === 'localhost' ? LOCAL_BACKEND : API_BASE;
-            const response = await fetch(`${baseUrl}/records/${CURRENT_USER_ID}?patientId=${patient.id || CURRENT_PATIENT_ID}`, {
-                headers: { 'Authorization': 'Bearer clinical-access-token-2026' }
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/${CURRENT_USER_ID}?patientId=${patient.id || CURRENT_PATIENT_ID}`, {
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                }
             });
+
             const data = await response.json();
             if (data.status === 'success') {
                 setSavedRecords(data.records);
@@ -873,10 +978,11 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <button
-                                            onClick={() => record._id && window.open(`${API_BASE}/records/${record._id}/pdf`, '_blank')}
+                                            onClick={() => record._id && window.open(`${getApiBase()}${API_ENDPOINTS.AI}/records/${record._id}/pdf`, '_blank')}
                                             className="p-3 rounded-xl bg-[#F5F0E9] text-black opacity-0 group-hover:opacity-100 transition-all hover:bg-[#E0C58F]"
                                             title="Download Report"
                                         >
+
                                             <Download size={18} />
                                         </button>
                                         <ChevronRight className="text-[#D9CBC2] group-hover:text-black transition-colors" size={24} />
@@ -1187,6 +1293,9 @@ const DnaResult = ({ file, result, loading, onAnalyze, onSave }: { file: File, r
         </div>
     );
 };
+
+
+
 
 // Sub-components
 const SidebarIcon = ({ icon, active, onClick, label }: { icon: React.ReactNode, active: boolean, onClick: () => void, label: string }) => (

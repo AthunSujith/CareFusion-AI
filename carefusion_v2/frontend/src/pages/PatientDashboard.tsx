@@ -22,6 +22,8 @@ import {
 
 import { Link } from 'react-router-dom';
 import FileUpload from '../components/FileUpload';
+import { getApiBase, API_ENDPOINTS, setApiBase } from '../utils/apiConfig';
+
 
 
 const PatientDashboard = () => {
@@ -34,7 +36,9 @@ const PatientDashboard = () => {
     const [copied, setCopied] = useState(false);
 
     const PATIENT_ID = 'PAT-001-X'; // Unified patient ID for this demo
-    const API_BASE = 'http://localhost:5000/api/v2/ai';
+    const [showBridgeSettings, setShowBridgeSettings] = useState(false);
+    const [newTunnelUrl, setNewTunnelUrl] = useState('');
+
 
     // Logic for 2-minute code expiry and 1-hour session termination
     useEffect(() => {
@@ -65,9 +69,14 @@ const PatientDashboard = () => {
     const fetchPatientData = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE}/records/dr-sarah-chen?patientId=${PATIENT_ID}`, {
-                headers: { 'Authorization': 'Bearer clinical-access-token-2026' }
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/dr-sarah-chen?patientId=${PATIENT_ID}`, {
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                }
             });
+
             const data = await response.json();
             if (data.status === 'success') {
                 setRecords(data.records);
@@ -405,9 +414,76 @@ const PatientDashboard = () => {
                     </AnimatePresence>
                 </div>
             </main>
+
+            {/* Clinical Bridge Modal */}
+            <AnimatePresence>
+                {showBridgeSettings && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white border-2 border-[#112250] rounded-[3rem] p-12 max-w-lg w-full shadow-2xl space-y-8"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <RefreshCw className="text-[#112250]" />
+                                    <h3 className="text-2xl font-black text-black">Bridge Configuration</h3>
+                                </div>
+                                <button onClick={() => setShowBridgeSettings(false)} className="p-2 hover:bg-[#F5F0E9] rounded-xl transition-all">
+                                    <LogOut className="rotate-180" />
+                                </button>
+                            </div>
+
+                            <p className="text-sm font-medium text-black/60 leading-relaxed">
+                                Enter your public clinical node URL (handshake bridge) to synchronize records across encrypted sectors.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40">Active Node Path</label>
+                                    <input
+                                        type="text"
+                                        placeholder="https://clinical-node.loca.lt"
+                                        className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl p-4 text-sm font-bold outline-none focus:border-[#112250] transition-all"
+                                        value={newTunnelUrl || getApiBase()}
+                                        onChange={(e) => setNewTunnelUrl(e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (newTunnelUrl) setApiBase(newTunnelUrl);
+                                        setShowBridgeSettings(false);
+                                        fetchPatientData();
+                                    }}
+                                    className="w-full bg-[#112250] text-[#E0C58F] py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
+                                >
+                                    Verify Bridge
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        localStorage.removeItem('carefusion_tunnel_url');
+                                        setShowBridgeSettings(false);
+                                        fetchPatientData();
+                                    }}
+                                    className="w-full text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black transition-colors"
+                                >
+                                    Reset to Default Protocol
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
+
 
 // Sub-components
 const NavIcon = ({ icon, active, onClick, label }: { icon: React.ReactNode, active: boolean, onClick: () => void, label: string }) => (

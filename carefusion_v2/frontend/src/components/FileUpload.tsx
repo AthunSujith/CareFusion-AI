@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { getApiBase, API_ENDPOINTS } from '../utils/apiConfig';
+
 
 interface FileUploadProps {
     patientId: string;
@@ -32,10 +34,13 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
         formData.append('folderType', folderType);
 
         try {
-            const response = await fetch('http://localhost:5000/api/v2/patients/upload', {
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.PATIENTS}/upload`, {
                 method: 'POST',
+                headers: { 'bypass-tunnel-reminder': 'true' },
                 body: formData,
             });
+
 
             const data = await response.json();
 
@@ -94,8 +99,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
                     onClick={handleUpload}
                     disabled={uploading || !file}
                     className={`w-full py-3 rounded-xl font-bold transition-all ${uploading || !file
-                            ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]'
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]'
                         }`}
                 >
                     {uploading ? 'Uploading...' : 'Confirm Upload to Patient Database'}

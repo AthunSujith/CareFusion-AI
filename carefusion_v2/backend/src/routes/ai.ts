@@ -161,6 +161,7 @@ router.post('/module4/temporal', async (req, res) => {
  */
 router.post('/records/imaging/save', async (req, res) => {
     try {
+        console.log('📝 Saving Imaging Record:', req.body);
         const { userId, patientId, imagePath, prediction, confidence, observations, analysisId } = req.body;
 
         const record = new ClinicalRecord({
@@ -196,6 +197,7 @@ router.post('/records/imaging/save', async (req, res) => {
  */
 router.post('/records/genomics/save', async (req, res) => {
     try {
+        console.log('📝 Saving Genomics Record:', req.body);
         const { userId, patientId, vcfPath, variants, summary, interpretation, fileName } = req.body;
 
         const record = new ClinicalRecord({
@@ -230,6 +232,7 @@ router.post('/records/genomics/save', async (req, res) => {
  */
 router.post('/records/symptom/save', async (req, res) => {
     try {
+        console.log('📝 Saving Symptom Record:', req.body);
         const { userId, patientId, symptomText, aiResponse } = req.body;
 
         const record = new ClinicalRecord({
