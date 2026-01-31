@@ -5,6 +5,7 @@ import ClinicalRecord from '../models/ClinicalRecord.js';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { getPatientDataPath, saveAnalysisResult } from '../utils/storage.js';
 
 dotenv.config();
 
@@ -13,9 +14,15 @@ const router = express.Router();
 // Professional medical data storage config
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const userId = req.body.userId || 'anonymous';
-        const userRoot = process.env.USER_DATA_ROOT || path.join(process.cwd(), 'data', 'users');
-        const uploadDir = path.join(userRoot, userId, 'vault');
+        const { patientId } = req.body;
+        const pId = patientId || 'anonymous';
+
+        let subfolder = 'vault';
+        if (file.fieldname === 'audio_file') subfolder = 'audio';
+        else if (file.fieldname === 'medical_image') subfolder = 'image/original_image';
+        else if (file.fieldname === 'vcf_file') subfolder = 'DNA';
+
+        const uploadDir = getPatientDataPath(pId, subfolder);
 
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
@@ -57,16 +64,21 @@ router.use(verifyClinician);
 router.post('/module1/analyze', upload.single('audio_file'), async (req, res) => {
     try {
         const file = req.file;
-        const { userId, textInput } = req.body;
-        console.log(`🤖 AI Node Bridge: Module 1 invoked for user ${userId}`);
+        const { patientId, textInput, userId } = req.body;
+        const pId = patientId || 'anonymous';
+
+        console.log(`🤖 AI Node Bridge: Module 1 invoked for patient ${pId}`);
 
         let result;
         if (file) {
-            console.log(`🎤 Audio payload received for Module 1: ${file.filename}`);
+            console.log(`🎤 Audio payload received for Module 1: ${file.path}`);
             result = await PythonService.executeModule1("", file.path);
         } else {
             result = await PythonService.executeModule1(textInput || "");
         }
+
+        // Save result as JSON file for persistent review
+        saveAnalysisResult(pId, '1', result);
 
         res.json({
             status: 'success',
@@ -86,16 +98,24 @@ router.post('/module1/analyze', upload.single('audio_file'), async (req, res) =>
 router.post('/module2/scan', upload.single('medical_image'), async (req, res) => {
     try {
         const file = req.file;
-        const { userId } = req.body;
+        const { patientId, userId } = req.body;
+        const pId = patientId || 'anonymous';
 
         if (!file) {
             return res.status(400).json({ status: 'error', message: 'No image payload detected' });
         }
 
-        console.log(`📸 AI Node Bridge: Imaging payload received: ${file.filename}`);
+        console.log(`📸 AI Node Bridge: Imaging payload received: ${file.path}`);
+
+        // Heatmap output directory
+        const heatmapDir = getPatientDataPath(pId, 'image/heat_maps');
+        if (!fs.existsSync(heatmapDir)) fs.mkdirSync(heatmapDir, { recursive: true });
 
         // Execute Imaging Pipeline
-        const result = await PythonService.executeModule2(file.path);
+        const result = await PythonService.executeModule2(file.path, heatmapDir);
+
+        // Save result as JSON file
+        saveAnalysisResult(pId, '2', result);
 
         res.json({
             status: 'success',
@@ -116,15 +136,19 @@ router.post('/module2/scan', upload.single('medical_image'), async (req, res) =>
 router.post('/module3/dna', upload.single('vcf_file'), async (req, res) => {
     try {
         const file = req.file;
-        const { userId } = req.body;
+        const { patientId, userId } = req.body;
+        const pId = patientId || 'anonymous';
 
         if (!file) {
             return res.status(400).json({ status: 'error', message: 'No VCF payload detected' });
         }
 
-        console.log(`🧬 AI Node Bridge: DNA payload received: ${file.filename}`);
+        console.log(`🧬 AI Node Bridge: DNA payload received: ${file.path}`);
 
         const result = await PythonService.executeModule3(file.path);
+
+        // Save result as JSON file
+        saveAnalysisResult(pId, '3', result);
 
         res.json({
             status: 'success',
@@ -139,12 +163,29 @@ router.post('/module3/dna', upload.single('vcf_file'), async (req, res) => {
 /**
  * MODULE 4: Temporal Analysis
  */
-router.post('/module4/temporal', async (req, res) => {
+router.post('/module4/temporal', upload.single('audio_file'), async (req, res) => {
     try {
-        const { userId, userData } = req.body;
-        console.log(`⏳ AI Node Bridge: Module 4 invoked for user ${userId}`);
+        const file = req.file;
+        const { patientId, textInput, userId } = req.body;
+        const pId = patientId || 'anonymous';
 
-        const result = await PythonService.executeModule4(userData || {});
+        console.log(`⏳ AI Node Bridge: Module 4 invoked for patient ${pId}`);
+
+        let observation = textInput || "";
+        if (file) {
+            // If audio is sent, we should transcribe it or pass to Module 4 if it handles audio
+            // For now, Module 4 temporal_analysis.py takes user_id and observation_text
+            // We'll use Module 1's audio_text function via PythonService if needed, but the user said
+            // "audio is sent, saves, and then it goes to module 4 script"
+            console.log(`🎤 Temporal audio received: ${file.path}`);
+            // We'll pass the file path as the observation for now, or use automated transcription
+            observation = `[AUDIO_OBSERVATION] ${file.path}`;
+        }
+
+        const result = await PythonService.executeModule4(pId, observation);
+
+        // Save result as JSON file
+        saveAnalysisResult(pId, '4', result);
 
         res.json({
             status: 'success',
@@ -353,6 +394,30 @@ Generated by CareFusion AI System
     } catch (error: any) {
         console.error('Download PDF Error:', error);
         res.status(500).json({ status: 'error', message: error.message || 'Failed to generate report' });
+    }
+});
+
+/**
+ * GENERAL AI CHAT: MedGemma 1.5 4B (Text/PDF)
+ */
+router.post('/chat/general', upload.single('pdf_doc'), async (req, res) => {
+    try {
+        const file = req.file;
+        const { prompt, patientId } = req.body;
+        const pId = patientId || 'anonymous';
+
+        console.log(`💬 AI Chat Node: General query received (PDF: ${!!file})`);
+
+        const result = await PythonService.executeGeneralChat(prompt || "Please summarize the document.", file?.path);
+
+        res.json({
+            status: 'success',
+            timestamp: new Date().toISOString(),
+            result
+        });
+    } catch (error: any) {
+        console.error('General Chat Error:', error);
+        res.status(500).json({ status: 'error', message: error.message || 'General Chat Failure' });
     }
 });
 

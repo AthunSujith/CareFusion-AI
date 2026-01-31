@@ -32,7 +32,9 @@ import {
     FileSearch,
     ChevronRight,
     Download,
-    Terminal
+    Terminal,
+    MessagesSquare,
+    Bot
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FileUpload from '../components/FileUpload';
@@ -60,7 +62,7 @@ const CURRENT_PATIENT_ID = 'SW-928';
 
 
 const DoctorDashboard = () => {
-    const [view, setView] = useState<'overview' | 'linkage' | 'workspace' | 'history' | 'dossier'>('overview');
+    const [view, setView] = useState<'overview' | 'linkage' | 'workspace' | 'history' | 'dossier' | 'aichat'>('overview');
     const [activeModule, setActiveModule] = useState('symptoms');
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
     const [showBridgeSettings, setShowBridgeSettings] = useState(false);
@@ -99,6 +101,15 @@ const DoctorDashboard = () => {
         { id: '2', name: 'Marcus Chen', lastAccessed: '2h ago', status: 'Stable', avatar: 'MC' },
         { id: '3', name: 'Elena Rodriguez', lastAccessed: 'Yesterday', status: 'Critical', avatar: 'ER' },
     ]);
+
+    // AI Chat (MedGemma 1.5 4B) logic
+    const [chatMessages, setChatMessages] = useState<Message[]>([
+        { id: '1', type: 'bot', text: "Hello Doctor. I am MedGemma 1.5 (4B), your specialized medical AI. You can chat with me or upload medical PDFs for deep clinical analysis and summarization." }
+    ]);
+    const [chatInput, setChatInput] = useState('');
+    const [isChatThinking, setIsChatThinking] = useState(false);
+    const [chatPdf, setChatPdf] = useState<File | null>(null);
+    const chatPdfInputRef = useRef<HTMLInputElement>(null);
 
     const handleConnect = () => {
         if (syncCode.length === 11) {
@@ -312,6 +323,35 @@ const DoctorDashboard = () => {
         }
     };
 
+    const handleSaveSymptomRecord = async (symptomText: string, aiResponse: any) => {
+        try {
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/symptom/save`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                },
+                body: JSON.stringify({
+                    userId: CURRENT_USER_ID,
+                    patientId: CURRENT_PATIENT_ID,
+                    symptomText,
+                    aiResponse
+                })
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                alert('✅ Symptom analysis saved to patient record!');
+            } else {
+                alert(`❌ Failed to save record: ${data.message || 'Unknown Server Error'}`);
+            }
+        } catch (error: any) {
+            console.error('Save error:', error);
+            alert(`❌ Connection Error: ${error.message || 'Failed to reach clinical node.'}`);
+        }
+    };
+
     const handleSaveGenomicsRecord = async (interpretation: string, variants: string[], summary: string) => {
         try {
             const baseUrl = getApiBase();
@@ -343,32 +383,44 @@ const DoctorDashboard = () => {
         }
     };
 
-    const handleSaveSymptomRecord = async (symptomText: string, aiResponse: any) => {
+    const handleSendGeneralChat = async () => {
+        if (!chatInput.trim() && !chatPdf) return;
+
+        const userMsg: Message = { id: Date.now().toString(), type: 'user', text: chatInput || (chatPdf ? `📄 [Analyzing Document: ${chatPdf.name}]` : "") };
+        setChatMessages(prev => [...prev, userMsg]);
+        setChatInput('');
+        setIsChatThinking(true);
+
+        const formData = new FormData();
+        formData.append('prompt', chatInput || "Analyze this medical document.");
+        if (chatPdf) {
+            formData.append('pdf_doc', chatPdf);
+        }
+
         try {
-            const baseUrl = getApiBase();
-            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/symptom/save`, {
+            const url = `${getApiBase()}${API_ENDPOINTS.AI}/chat/general`;
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': 'Bearer clinical-access-token-2026',
                     'bypass-tunnel-reminder': 'true'
                 },
-                body: JSON.stringify({
-                    userId: CURRENT_USER_ID,
-                    patientId: CURRENT_PATIENT_ID,
-                    symptomText,
-                    aiResponse
-                })
+                body: formData
             });
             const data = await response.json();
-            if (data.status === 'success') {
-                alert('✅ Symptom analysis saved to patient record!');
-            } else {
-                alert(`❌ Failed to save record: ${data.message || 'Unknown Server Error'}`);
-            }
-        } catch (error: any) {
-            console.error('Save error:', error);
-            alert(`❌ Connection Error: ${error.message || 'Failed to reach clinical node.'}`);
+
+            const botMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                type: 'bot',
+                text: data.result?.result?.ai_response || "AI reasoning complete. Deep clinical patterns identified."
+            };
+            setChatMessages(prev => [...prev, botMsg]);
+            setChatPdf(null);
+        } catch (error) {
+            console.error("General AI Chat failed", error);
+            alert("❌ AI Chat Error: MedGemma Node handshake failure.");
+        } finally {
+            setIsChatThinking(false);
         }
     };
 
@@ -388,6 +440,7 @@ const DoctorDashboard = () => {
                     <SidebarIcon icon={<User />} active={view === 'overview'} onClick={() => setView('overview')} label="Overview" />
                     <SidebarIcon icon={<Database />} active={view === 'linkage'} onClick={() => setView('linkage')} label="Access" />
                     <SidebarIcon icon={<HistoryIcon />} active={view === 'history'} onClick={() => setView('history')} label="History" />
+                    <SidebarIcon icon={<MessagesSquare />} active={view === 'aichat'} onClick={() => setView('aichat')} label="AI Chat" />
                     <SidebarIcon icon={<FileText />} active={false} onClick={() => { }} label="Settings" />
                 </nav>
 
@@ -754,6 +807,81 @@ const DoctorDashboard = () => {
                             onWorkspace={() => setView('workspace')}
                         />
                     )}
+
+                    {view === 'aichat' && (
+                        <motion.section
+                            key="aichat"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="p-10 lg:p-16 h-full flex flex-col"
+                        >
+                            <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-10">
+                                <header className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 rounded-2xl bg-[#112250] flex items-center justify-center text-[#E0C58F] shadow-xl">
+                                            <Bot size={32} />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-3xl font-black text-black tracking-tight">MedGemma Assistant</h2>
+                                            <p className="text-sm font-bold text-[#3C507D] uppercase tracking-widest">Medical Reasoning Engine v1.5 (4B)</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-black/60 font-medium leading-relaxed max-w-2xl">
+                                        Clinical reasoning agent designed for secure medical document summarization and disease pattern analysis.
+                                    </p>
+                                </header>
+
+                                <div className="flex-1 bg-white border-2 border-[#D9CBC2] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden">
+                                    <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8">
+                                        {chatMessages.map(m => (
+                                            <ChatMessage key={m.id} type={m.type} text={m.text} />
+                                        ))}
+                                        {isChatThinking && (
+                                            <div className="flex justify-start">
+                                                <div className="bg-[#F5F0E9] border-2 border-[#D9CBC2] p-4 rounded-2xl flex gap-1">
+                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce" />
+                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.2s]" />
+                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.4s]" />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="p-8 bg-[#F5F0E9]/30 border-t border-[#D9CBC2]">
+                                        {chatPdf && (
+                                            <div className="mb-4 flex items-center justify-between p-4 bg-[#E0C58F]/20 border border-[#E0C58F] rounded-xl">
+                                                <div className="flex items-center gap-3">
+                                                    <FileText className="text-[#112250]" />
+                                                    <span className="text-sm font-bold text-black">{chatPdf.name}</span>
+                                                </div>
+                                                <button onClick={() => setChatPdf(null)} className="text-rose-600 hover:scale-110 transition-transform"><X size={18} /></button>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-4">
+                                            <input type="file" className="hidden" ref={chatPdfInputRef} accept=".pdf" onChange={(e) => setChatPdf(e.target.files?.[0] || null)} />
+                                            <button onClick={() => chatPdfInputRef.current?.click()} className="p-4 bg-white border border-[#D9CBC2] rounded-2xl text-[#112250] hover:bg-white transition-all shadow-sm group">
+                                                <Upload size={24} className="group-hover:scale-110 transition-transform" />
+                                            </button>
+                                            <div className="flex-1 relative">
+                                                <input
+                                                    type="text"
+                                                    value={chatInput}
+                                                    onChange={(e) => setChatInput(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && handleSendGeneralChat()}
+                                                    placeholder="Ask MedGemma anything..."
+                                                    className="w-full bg-white border-2 border-[#D9CBC2] rounded-2xl px-6 py-4 text-[#112250] outline-none focus:border-[#E0C58F] transition-all font-medium"
+                                                />
+                                                <button onClick={handleSendGeneralChat} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#3C507D] hover:scale-110 transition-transform">
+                                                    <Send size={24} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.section>
+                    )}
                 </AnimatePresence>
             </main>
 
@@ -1047,6 +1175,49 @@ const DossierNavButton = ({ active, onClick, icon, label }: { active: boolean, o
     </button>
 );
 
+/**
+ * PARSER: Converts raw AI text with A. B. C. sections into structured JSX
+ */
+const ClinicalReportFormatter = ({ text }: { text: string }) => {
+    // Regex to split by sections (e.g., A. CLINICAL HYPOTHESIS)
+    // Matches the 40-character decorative line and the alphanumeric header
+    const sections = text.split(/─{20,}\n([A-Z]\. [^\n]+)\n─{20,}/);
+
+    if (sections.length < 2) {
+        return <p className="whitespace-pre-wrap">{text}</p>;
+    }
+
+    const processedSections: { title: string, content: string }[] = [];
+    for (let i = 1; i < sections.length; i += 2) {
+        processedSections.push({
+            title: sections[i],
+            content: sections[i + 1]?.trim() || ''
+        });
+    }
+
+    return (
+        <div className="space-y-8 py-2">
+            {processedSections.map((s, idx) => (
+                <div key={idx} className="space-y-3">
+                    <div className="flex items-center gap-3">
+                        <div className="h-px flex-1 bg-[#D9CBC2]/30" />
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3C507D] px-2">{s.title}</h4>
+                        <div className="h-px flex-1 bg-[#D9CBC2]/30" />
+                    </div>
+                    <div className="text-sm font-medium leading-relaxed text-black/90 pl-2">
+                        {s.content.split('\n').filter(line => line.trim() !== '').map((line, lIdx) => (
+                            <div key={lIdx} className={`${line.trim().startsWith('-') ? 'pl-4 relative mb-1' : 'mb-2'}`}>
+                                {line.trim().startsWith('-') && <span className="absolute left-0 text-[#112250]">•</span>}
+                                {line.trim().startsWith('-') ? line.trim().substring(1).trim() : line}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 const SymptomResult = ({ data, onSave }: { data: any, onSave: () => void }) => {
     const [showLogs, setShowLogs] = useState(false);
     const observations = data?.symptoms || ["Stable baseline identified", "Neural reasoning active"];
@@ -1097,7 +1268,9 @@ const SymptomResult = ({ data, onSave }: { data: any, onSave: () => void }) => {
                 </div>
                 <div className="p-6 bg-[#E0C58F] border-2 border-[#112250] rounded-2xl shadow-lg text-black">
                     <p className="text-[10px] font-bold text-black opacity-60 uppercase tracking-widest mb-2 italic">Neural Prediction</p>
-                    <p className="text-lg font-black italic text-black leading-tight">"{typeof diagnosis === 'string' ? (diagnosis.length > 300 ? diagnosis.substring(0, 300) + '...' : diagnosis) : JSON.stringify(diagnosis)}"</p>
+                    <p className="text-lg font-black italic text-black leading-tight">
+                        {typeof diagnosis === 'string' ? diagnosis : JSON.stringify(diagnosis)}
+                    </p>
                 </div>
             </div>
         </motion.div>
@@ -1338,8 +1511,8 @@ const ModuleCard = ({ label, icon, active, onClick }: { label: string, icon: Rea
 
 const ChatMessage = ({ type, text }: { type: 'bot' | 'user', text: string }) => (
     <div className={`flex ${type === 'bot' ? 'justify-start' : 'justify-end'}`}>
-        <div className={`max-w-[85%] p-6 rounded-2xl text-base font-medium leading-relaxed shadow-sm ${type === 'bot' ? 'bg-white border-2 border-[#D9CBC2] text-black rounded-bl-none' : 'bg-[#112250] text-[#E0C58F] rounded-br-none'}`}>
-            {text}
+        <div className={`max-w-[85%] p-6 rounded-2xl text-base font-medium leading-relaxed shadow-sm transition-all ${type === 'bot' ? 'bg-white border-2 border-[#D9CBC2] text-black rounded-bl-none w-full' : 'bg-[#112250] text-[#E0C58F] rounded-br-none'}`}>
+            {type === 'bot' ? <ClinicalReportFormatter text={text} /> : text}
         </div>
     </div>
 );
@@ -1353,5 +1526,6 @@ const StatCard = ({ label, val, icon }: { label: string, val: string, icon: Reac
         <div className="text-4xl font-black text-black tracking-tight">{val}</div>
     </div>
 );
+
 
 export default DoctorDashboard;

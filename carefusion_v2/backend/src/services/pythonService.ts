@@ -100,11 +100,12 @@ export class PythonService {
         return { ...result, logs };
     }
 
-    static async executeModule2(imagePath: string): Promise<any> {
+    static async executeModule2(imagePath: string, heatmapDir: string): Promise<any> {
         const scriptPath = process.env.MODULE2_SCRIPT_PATH || '';
         const pythonExecutable = process.env.MODULE2_PYTHON_EXECUTABLE || '';
 
-        const args = [scriptPath, imagePath];
+        // Added heatmapDir to args as requested
+        const args = [scriptPath, imagePath, "0.44", heatmapDir];
 
         const { result, logs } = await this.runPythonScript(pythonExecutable, scriptPath, args);
         return { ...result, logs };
@@ -125,14 +126,26 @@ export class PythonService {
         return { ...result, logs };
     }
 
-    static async executeModule4(userData: any): Promise<any> {
+    static async executeModule4(patientId: string, observation: string): Promise<any> {
         const scriptPath = process.env.MODULE4_SCRIPT_PATH || '';
         const pythonExecutable = process.env.MODULE4_PYTHON_EXECUTABLE || '';
 
-        const userId = userData.userId || 'anonymous';
-        const observation = userData.observation || 'Analysis requested';
+        // Module 4 temporal_analysis.py expects <user_id> <observation>
+        const args = [scriptPath, patientId, observation];
 
-        const args = [scriptPath, userId, observation];
+        const { result, logs } = await this.runPythonScript(pythonExecutable, scriptPath, args);
+        return { ...result, logs };
+    }
+
+    static async executeGeneralChat(prompt: string, pdfPath?: string): Promise<any> {
+        const scriptPath = process.env.MODULE_CHAT_SCRIPT_PATH || '';
+        const pythonExecutable = process.env.MODULE_CHAT_PYTHON_EXECUTABLE || '';
+
+        const args = [scriptPath, prompt];
+        if (pdfPath) {
+            args.push('--pdf');
+            args.push(pdfPath);
+        }
 
         const { result, logs } = await this.runPythonScript(pythonExecutable, scriptPath, args);
         return { ...result, logs };
