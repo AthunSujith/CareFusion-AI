@@ -12,31 +12,52 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// 1. ATOMIC Handshake & CORS Controller (Must be first)
+// 1. Explicit Clinical Allowlist
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
+    "https://clinical-vault-bridge-2026.loca.lt",
+    "https://clinical-bridge-v2-dev.loca.lt",
+    "https://carefusion-v2-bridge.loca.lt",
+    "https://care-fusion-ai.vercel.app"
+];
+
+// 2. Configure CORS properly (Explicit Allowlist)
+app.use(cors({
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+
+        // check if the origin is in our allowlist or ends with .loca.lt
+        const isAllowed = allowedOrigins.includes(origin) || origin.includes('loca.lt');
+
+        if (isAllowed) {
+            return callback(null, true);
+        } else {
+            console.warn(`🚨 Security Block: CORS origin ${origin} not in allowlist`);
+            return callback(new Error("CORS blocked: " + origin));
+        }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "bypass-tunnel-reminder", "Access-Control-Allow-Private-Network"],
+    credentials: true,
+    optionsSuccessStatus: 200
+}));
+
+// 3. Explicitly handle OPTIONS preflight (CRITICAL)
+// Also inject PNA header for local-to-remote handshakes
 app.use((req, res, next) => {
-    const origin = req.headers.origin || '*';
-
-    // Set headers for ALL requests
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, bypass-tunnel-reminder, Access-Control-Allow-Private-Network');
     res.setHeader('Access-Control-Allow-Private-Network', 'true');
-    res.setHeader('Access-Control-Max-Age', '86400');
     res.setHeader('X-Powered-By', 'CareFusion Clinical Node');
-
-    // Handle Preflight locally
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-
-    // Log the request
-    console.log(`[${new Date().toISOString()}] 📡 Bridge Hit: ${req.method} ${req.url} | Origin: ${origin}`);
     next();
 });
+app.options("*", cors());
 
-// Remove old logging and cors middleware as they are now consolidated above
-// (Deleted app.use logging and app.use cors blocks)
+// Quick Health Check
+app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
