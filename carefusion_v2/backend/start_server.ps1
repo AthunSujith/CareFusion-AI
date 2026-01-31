@@ -1,9 +1,11 @@
 # CareFusion AI - Server Handshake Controller
 $BACKEND_DIR = "C:\CareFusion-AI\carefusion_v2\backend"
-$SUBDOMAIN = "doctor-bridge-sync-2026"
+$SUBDOMAIN = "clinical-bridge-v2-dev"
 $PORT = 5001
 
+$IP = (Invoke-RestMethod -Uri "https://loca.lt/mytunnelpassword").Trim()
 Write-Host "Initializing CareFusion AI Clinical Server..." -ForegroundColor Cyan
+Write-Host "Your Tunnel Password is: $IP" -ForegroundColor Green
 
 # Start Backend
 Write-Host "Starting Backend Node Service on port $PORT..." -ForegroundColor Yellow

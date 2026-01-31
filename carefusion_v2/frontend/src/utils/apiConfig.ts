@@ -6,7 +6,7 @@ const getStoredTunnel = () => {
     }
 };
 
-const DEFAULT_TUNNEL = 'https://doctor-bridge-sync-2026.loca.lt'; // Fallback
+const DEFAULT_TUNNEL = 'https://clinical-bridge-v2-dev.loca.lt'; // Fallback
 
 export const getApiBase = () => {
     const hostname = window.location.hostname;
