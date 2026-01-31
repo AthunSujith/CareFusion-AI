@@ -1,6 +1,5 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import aiRoutes from './routes/ai.js';
@@ -12,51 +11,38 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// 1. Explicit Clinical Allowlist
-const allowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:3000",
-    "https://clinical-vault-bridge-2026.loca.lt",
-    "https://clinical-bridge-v2-dev.loca.lt",
-    "https://carefusion-v2-bridge.loca.lt",
-    "https://care-fusion-ai.vercel.app"
-];
-
-// 2. Logging and Handshake Debugging
+/**
+ * 🛠️ ULTIMATE CLINICAL HANDSHAKE MIDDLEWARE
+ * Replaces standard CORS to ensure compatibility with Localtunnel, Vercel, and Railtel.
+ */
 app.use((req, res, next) => {
-    console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.path} | Origin: ${req.headers.origin}`);
+    // 1. Logging for real-time radar
+    if (req.method !== 'OPTIONS') {
+        console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.path} | Origin: ${req.headers.origin}`);
+    }
+
+    // 2. Inject PNA (Private Network Access) headers
     res.setHeader('Access-Control-Allow-Private-Network', 'true');
     res.setHeader('X-Powered-By', 'CareFusion Clinical Node');
+
+    // 3. Dynamic CORS Resolution
+    const origin = req.headers.origin;
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    } else {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+
+    // 4. Strong Preflight (OPTIONS) Interceptor
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, bypass-tunnel-reminder, Access-Control-Allow-Private-Network');
+        res.setHeader('Access-Control-Allow-Max-Age', '86400'); // Cache preflight for 24h
+        return res.sendStatus(200);
+    }
+
     next();
-});
-
-// 3. Robust CORS Configuration
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        const isAllowed = allowedOrigins.includes(origin) ||
-            origin.includes('loca.lt') ||
-            origin.includes('ngrok-free.app') ||
-            origin.includes('vercel.app');
-
-        if (isAllowed) return callback(null, true);
-        console.warn(`🚨 Security Block: CORS origin ${origin} not in allowlist`);
-        return callback(null, true); // Fallback for debugging
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "bypass-tunnel-reminder", "Access-Control-Allow-Private-Network"],
-    credentials: true,
-    optionsSuccessStatus: 200
-}));
-
-// 4. Strong Preflight Handling
-app.options("*", cors());
-
-// Fixed for Express 5: Use regex /.*/ instead of "*" or "(.*)" to avoid PathError
-app.options(/.*/, (req, res) => {
-    res.setHeader('Access-Control-Allow-Private-Network', 'true');
-    res.sendStatus(200);
 });
 
 // Quick Health Check
@@ -64,8 +50,8 @@ app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Routes
 app.use('/api/v2/auth', authRoutes);
@@ -83,8 +69,7 @@ app.use((err: any, req: any, res: any, next: any) => {
     console.error('🔥 Global Server Error:', err);
     res.status(500).json({
         status: 'error',
-        message: err.message || 'Internal Server Error',
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        message: err.message || 'Internal Server Error'
     });
 });
 
