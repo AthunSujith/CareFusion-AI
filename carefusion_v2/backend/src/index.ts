@@ -29,8 +29,10 @@ app.use(cors({
         // allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
 
-        // check if the origin is in our allowlist or ends with .loca.lt
-        const isAllowed = allowedOrigins.includes(origin) || origin.includes('loca.lt');
+        // check if the origin is in our allowlist or from a trusted tunnel provider
+        const isAllowed = allowedOrigins.includes(origin) ||
+            origin.includes('loca.lt') ||
+            origin.includes('trycloudflare.com');
 
         if (isAllowed) {
             return callback(null, true);
