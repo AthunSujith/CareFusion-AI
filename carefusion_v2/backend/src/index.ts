@@ -52,7 +52,8 @@ app.use((req, res, next) => {
     res.setHeader('X-Powered-By', 'CareFusion Clinical Node');
     next();
 });
-app.options("*", cors());
+// Fixed for Express 5: Use (.*) instead of * for global wildcard
+app.options("(.*)", cors());
 
 // Quick Health Check
 app.get("/api/health", (req, res) => {
