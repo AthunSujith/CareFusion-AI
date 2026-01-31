@@ -9,6 +9,11 @@ dotenv.config();
  * SECURITY MIDDLEWARE: Verify Clinical Identity
  */
 const verifyClinician = (req: any, res: any, next: any) => {
+    // Skip authentication for OPTIONS preflight requests (CORS)
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
+
     const authHeader = req.headers.authorization;
     if (!authHeader || authHeader !== 'Bearer clinical-access-token-2026') {
         console.warn('🚨 Unauthorized Access Attempt Detected at Patient Node');

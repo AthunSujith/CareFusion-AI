@@ -7,17 +7,23 @@ const getStoredTunnel = () => {
 };
 
 const DEFAULT_TUNNEL = 'https://carefusion-v2-bridge.loca.lt'; // Fallback
-const LOCAL_BACKEND = 'http://localhost:5000';
 
 export const getApiBase = () => {
-    // If we are on localhost, use local backend directly
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return LOCAL_BACKEND;
+    const hostname = window.location.hostname;
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+
+    // Default to the secure tunnel for global access
+    const storedTunnel = getStoredTunnel();
+    const activeTunnel = (storedTunnel || DEFAULT_TUNNEL).replace(/\/$/, '');
+
+    // If on localhost, use the explicit IP to avoid IPv6/DNS resolution delays
+    if (isLocal) {
+        return `http://127.0.0.1:5000`;
     }
 
-    // Use stored tunnel URL if available, otherwise use default
-    const storedTunnel = getStoredTunnel();
-    return (storedTunnel || DEFAULT_TUNNEL).replace(/\/$/, '');
+    // Otherwise (e.g., on Vercel), use the hardcoded secure bridge
+    console.log('📡 Routed through CareFusion Global Bridge:', activeTunnel);
+    return activeTunnel;
 };
 
 export const setApiBase = (url: string) => {

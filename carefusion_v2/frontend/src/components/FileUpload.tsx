@@ -28,6 +28,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
         setUploading(true);
         setMessage('');
 
+
         const formData = new FormData();
         formData.append('patientId', patientId);
         formData.append('folderType', folderType);
@@ -35,7 +36,10 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
 
         try {
             const baseUrl = getApiBase();
-            const response = await fetch(`${baseUrl}${API_ENDPOINTS.PATIENTS}/upload`, {
+            const uploadUrl = `${baseUrl}${API_ENDPOINTS.PATIENTS}/upload`;
+            console.log('🔵 Upload attempt:', { uploadUrl, patientId, folderType, fileName: file.name });
+
+            const response = await fetch(uploadUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer clinical-access-token-2026',
@@ -44,20 +48,44 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
                 body: formData,
             });
 
+            console.log('🔵 Response status:', response.status, response.statusText);
 
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = { error: 'Invalid response from server' };
+            }
 
             if (response.ok) {
-                setMessage('✅ Success: File uploaded to ' + folderType);
+                setMessage('✅ Success: File synchronized to vault');
                 setFile(null);
                 if (onUploadSuccess) onUploadSuccess(data);
             } else {
-                setMessage('❌ Error: ' + data.error);
+                setMessage('❌ Error: ' + (data.error || 'Upload failed'));
             }
-        } catch (error) {
-            setMessage('❌ Connection Error');
+        } catch (error: any) {
+            console.error('🔴 Upload error detail:', error);
+            setMessage(`❌ Connection Blocked: Check if backend is running on port 5000`);
         } finally {
             setUploading(false);
+        }
+    };
+
+    const testConnection = async () => {
+        setMessage('🔄 Testing clinical handshake...');
+        try {
+            const baseUrl = getApiBase();
+            const res = await fetch(`${baseUrl}/`, {
+                headers: { 'bypass-tunnel-reminder': 'true' }
+            });
+            if (res.ok) {
+                setMessage('✅ Handshake Verified: Backend reachable');
+            } else {
+                setMessage('⚠️ Handshake Failed: Server returned ' + res.status);
+            }
+        } catch (err) {
+            setMessage('❌ Handshake Blocked: Browser is restricting access to the backend');
         }
     };
 
@@ -109,11 +137,20 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
                     {uploading ? 'Uploading...' : 'Confirm Upload to Patient Database'}
                 </button>
 
-                {message && (
-                    <p className={`text-sm text-center mt-4 ${message.includes('✅') ? 'text-green-400' : 'text-red-400'}`}>
-                        {message}
-                    </p>
-                )}
+                <div className="flex flex-col gap-3">
+                    {message && (
+                        <p className={`text-sm text-center font-bold px-4 py-2 rounded-lg ${message.includes('✅') ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                            {message}
+                        </p>
+                    )}
+
+                    <button
+                        onClick={testConnection}
+                        className="text-[10px] text-gray-400 hover:text-white uppercase tracking-widest transition-colors"
+                    >
+                        Troubleshoot Connection
+                    </button>
+                </div>
             </div>
         </div>
     );
