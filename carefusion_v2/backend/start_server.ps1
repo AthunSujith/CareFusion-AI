@@ -31,7 +31,7 @@ if (!(Get-Command $CLOUDFLARED -ErrorAction SilentlyContinue)) {
 # 2. Start Cloudflare Tunnel (Standard for Medical Apps)
 Write-Host "Establishing Professional Clinical Bridge via Cloudflare..." -ForegroundColor Cyan
 Write-Host "NOTE: Look for the URL ending in '.trycloudflare.com' in the new window." -ForegroundColor Green
-Start-Process cmd.exe -ArgumentList "/k $CLOUDFLARED tunnel --url http://127.0.0.1:$PORT" -WorkingDirectory $BACKEND_DIR
+Start-Process cmd.exe -ArgumentList "/k `"$CLOUDFLARED`" tunnel --url http://127.0.0.1:$PORT" -WorkingDirectory $BACKEND_DIR
 
 Write-Host "Server processes launched in separate windows." -ForegroundColor Green
 Write-Host "1. Find your '.trycloudflare.com' URL in the Cloudflared window." -ForegroundColor Cyan
