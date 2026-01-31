@@ -1,6 +1,6 @@
 # CareFusion AI - Server Handshake Controller
 $BACKEND_DIR = "C:\CareFusion-AI\carefusion_v2\backend"
-$SUBDOMAIN = "carefusion-clinical-bridge"
+$SUBDOMAIN = "doctor-bridge-sync-2026"
 $PORT = 5001
 
 Write-Host "Initializing CareFusion AI Clinical Server..." -ForegroundColor Cyan
