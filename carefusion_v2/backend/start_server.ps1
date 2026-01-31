@@ -3,36 +3,34 @@ $BACKEND_DIR = "C:\CareFusion-AI\carefusion_v2\backend"
 $SUBDOMAIN = "clinical-vault-bridge-2026"
 $PORT = 5001
 
-Write-Host "Initializing CareFusion AI Clinical Server..." -ForegroundColor Cyan
+# 1. Fetch LocalTunnel Password (Public IP)
+$IP = "Searching..."
+try {
+    $IP_RESPONSE = Invoke-WebRequest -Uri "https://loca.lt/mytunnelpassword" -UseBasicParsing -TimeoutSec 5
+    $IP = $IP_RESPONSE.Content.Trim()
+} catch {
+    $IP = "Check browser at whatsmyip.org"
+}
 
-# Start Backend
+Write-Host "Initializing CareFusion AI Clinical Server..." -ForegroundColor Cyan
+Write-Host "Your LocalTunnel Password is: $IP" -ForegroundColor Green
+
+# 2. Start Backend
 Write-Host "Starting Backend Node Service on port $PORT..." -ForegroundColor Yellow
 Start-Process cmd.exe -ArgumentList "/k npm run dev" -WorkingDirectory $BACKEND_DIR
 
-# Wait
+# Wait for backend to warm up
 Start-Sleep -Seconds 5
 
-# Find ngrok executable
-$NGROK = "ngrok"
-if (!(Get-Command $NGROK -ErrorAction SilentlyContinue)) {
-    $PATHS = @(
-        "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winet.Source_8wekyb3d8bbwe\ngrok.exe",
-        "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe"
-    )
-    foreach ($P in $PATHS) {
-        if (Test-Path $P) {
-            $NGROK = $P
-            break
-        }
-    }
-}
+# 3. Start Secure Bridge (Primary: LocalTunnel)
+# This provides the static URL: https://clinical-vault-bridge-2026.loca.lt
+Write-Host "Establishing Primary Secure Bridge..." -ForegroundColor Yellow
+Start-Process cmd.exe -ArgumentList "/k npx localtunnel --port $PORT --local-host 127.0.0.1 --subdomain $SUBDOMAIN" -WorkingDirectory $BACKEND_DIR
 
-# 2. Start Ngrok Tunnel (High Reliability)
-Write-Host "Establishing Professional Clinical Bridge via Ngrok..." -ForegroundColor Cyan
-Write-Host "NOTE: Look for the URL ending in '.ngrok-free.app' in the new window." -ForegroundColor Green
-Start-Process cmd.exe -ArgumentList "/k `"$NGROK`" http $PORT" -WorkingDirectory $BACKEND_DIR
+# 4. Optional: Start Ngrok (High Reliability Backup)
+# If LocalTunnel is slow or fails, you can use Ngrok by running:
+# Start-Process cmd.exe -ArgumentList "/k npx ngrok http $PORT" -WorkingDirectory $BACKEND_DIR
 
 Write-Host "Server processes launched in separate windows." -ForegroundColor Green
-Write-Host "1. Find your '.ngrok-free.app' URL in the Ngrok window." -ForegroundColor Cyan
-Write-Host "2. Copy that URL into your Browser / Vercel Clinical Bridge setting." -ForegroundColor Cyan
-Write-Host "Keep these windows open to maintain the clinical tunnel." -ForegroundColor Red
+Write-Host "Primary Access: https://$SUBDOMAIN.loca.lt" -ForegroundColor Cyan
+Write-Host "Keep these windows open to maintain the clinical bridge." -ForegroundColor Red
