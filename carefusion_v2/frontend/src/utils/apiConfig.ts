@@ -6,7 +6,7 @@ const getStoredTunnel = () => {
     }
 };
 
-const DEFAULT_TUNNEL = 'https://carefusion-v2-bridge.loca.lt'; // Fallback
+const DEFAULT_TUNNEL = 'https://carefusion-clinical-bridge.loca.lt'; // Fallback
 
 export const getApiBase = () => {
     const hostname = window.location.hostname;
@@ -16,9 +16,9 @@ export const getApiBase = () => {
     const storedTunnel = getStoredTunnel();
     const activeTunnel = (storedTunnel || DEFAULT_TUNNEL).replace(/\/$/, '');
 
-    // If on localhost, use the explicit IP to avoid IPv6/DNS resolution delays
+    // If on local machine, match the current hostname exactly to avoid cross-host CORS issues
     if (isLocal) {
-        return `http://127.0.0.1:5000`;
+        return `http://${hostname}:5001`;
     }
 
     // Otherwise (e.g., on Vercel), use the hardcoded secure bridge
