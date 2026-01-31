@@ -32,7 +32,7 @@ app.use(cors({
         // check if the origin is in our allowlist or from a trusted tunnel provider
         const isAllowed = allowedOrigins.includes(origin) ||
             origin.includes('loca.lt') ||
-            origin.includes('trycloudflare.com');
+            origin.includes('ngrok-free.app');
 
         if (isAllowed) {
             return callback(null, true);

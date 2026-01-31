@@ -12,28 +12,27 @@ Start-Process cmd.exe -ArgumentList "/k npm run dev" -WorkingDirectory $BACKEND_
 # Wait
 Start-Sleep -Seconds 5
 
-# Find cloudflared executable
-$CLOUDFLARED = "cloudflared"
-if (!(Get-Command $CLOUDFLARED -ErrorAction SilentlyContinue)) {
+# Find ngrok executable
+$NGROK = "ngrok"
+if (!(Get-Command $NGROK -ErrorAction SilentlyContinue)) {
     $PATHS = @(
-        "C:\Program Files (x86)\cloudflared\cloudflared.exe",
-        "C:\Program Files\cloudflared\cloudflared.exe",
-        "$BACKEND_DIR\bin\cloudflared.exe"
+        "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winet.Source_8wekyb3d8bbwe\ngrok.exe",
+        "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe"
     )
     foreach ($P in $PATHS) {
         if (Test-Path $P) {
-            $CLOUDFLARED = $P
+            $NGROK = $P
             break
         }
     }
 }
 
-# 2. Start Cloudflare Tunnel (Standard for Medical Apps)
-Write-Host "Establishing Professional Clinical Bridge via Cloudflare..." -ForegroundColor Cyan
-Write-Host "NOTE: Look for the URL ending in '.trycloudflare.com' in the new window." -ForegroundColor Green
-Start-Process cmd.exe -ArgumentList "/k `"$CLOUDFLARED`" tunnel --url http://127.0.0.1:$PORT" -WorkingDirectory $BACKEND_DIR
+# 2. Start Ngrok Tunnel (High Reliability)
+Write-Host "Establishing Professional Clinical Bridge via Ngrok..." -ForegroundColor Cyan
+Write-Host "NOTE: Look for the URL ending in '.ngrok-free.app' in the new window." -ForegroundColor Green
+Start-Process cmd.exe -ArgumentList "/k `"$NGROK`" http $PORT" -WorkingDirectory $BACKEND_DIR
 
 Write-Host "Server processes launched in separate windows." -ForegroundColor Green
-Write-Host "1. Find your '.trycloudflare.com' URL in the Cloudflared window." -ForegroundColor Cyan
+Write-Host "1. Find your '.ngrok-free.app' URL in the Ngrok window." -ForegroundColor Cyan
 Write-Host "2. Copy that URL into your Browser / Vercel Clinical Bridge setting." -ForegroundColor Cyan
 Write-Host "Keep these windows open to maintain the clinical tunnel." -ForegroundColor Red
