@@ -3,7 +3,7 @@ $BACKEND_DIR = "C:\CareFusion-AI\carefusion_v2\backend"
 $SUBDOMAIN = "clinical-bridge-v2-dev"
 $PORT = 5001
 
-$IP = (Invoke-RestMethod -Uri "https://loca.lt/mytunnelpassword").Trim()
+$IP = (Invoke-RestMethod -Uri "https://loca.lt/mytunnelpassword?v=$([guid]::NewGuid())").Trim()
 Write-Host "Initializing CareFusion AI Clinical Server..." -ForegroundColor Cyan
 Write-Host "Your Tunnel Password is: $IP" -ForegroundColor Green
 
