@@ -13,7 +13,14 @@ export const getApiBase = () => {
     const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
 
     // Default to the secure tunnel for global access
-    const storedTunnel = getStoredTunnel();
+    let storedTunnel = getStoredTunnel();
+
+    // AUTO-MIGRATE: If stored tunnel is old/stale, clear it to use the new DEFAULT_TUNNEL
+    if (storedTunnel && (storedTunnel.includes('v2-bridge') || storedTunnel.includes('doctor-bridge'))) {
+        localStorage.removeItem('carefusion_tunnel_url');
+        storedTunnel = null;
+    }
+
     const activeTunnel = (storedTunnel || DEFAULT_TUNNEL).replace(/\/$/, '');
 
     // If on local machine, match the current hostname exactly to avoid cross-host CORS issues
