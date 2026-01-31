@@ -7,12 +7,16 @@ const BASE_DATA_DIR = 'C:\\CareFusion-AI\\data';
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const { patientId, folderType } = req.body;
+        console.log(`📡 Multer Handshake: Checking storage for Patient [${patientId}] Type [${folderType}]`);
+
         // Default to documentation if no folder type specified
         const type = folderType || 'documentation';
-        const dest = path.join(BASE_DATA_DIR, patientId, type);
+        const pIdentifier = patientId || 'anonymous';
+        const dest = path.join(BASE_DATA_DIR, pIdentifier, type);
 
         // Ensure directory exists
         if (!fs.existsSync(dest)) {
+            console.log(`📁 Creating new directory segment: ${dest}`);
             fs.mkdirSync(dest, { recursive: true });
         }
         cb(null, dest);

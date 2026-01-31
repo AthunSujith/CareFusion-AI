@@ -2,9 +2,26 @@ import { Router } from 'express';
 import Patient from '../models/Patient.js';
 import { initializePatientStorage } from '../utils/storage.js';
 import { upload } from '../utils/upload.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
+/**
+ * SECURITY MIDDLEWARE: Verify Clinical Identity
+ */
+const verifyClinician = (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== 'Bearer clinical-access-token-2026') {
+        console.warn('🚨 Unauthorized Access Attempt Detected at Patient Node');
+        return res.status(401).json({
+            status: 'error',
+            message: 'Unauthorized: Valid Clinical Access Token Required for Patient Handshake.'
+        });
+    }
+    next();
+};
 
 const router = Router();
+router.use(verifyClinician);
 
 // Create new patient and their data structure
 router.post('/register', async (req, res) => {
@@ -43,8 +60,14 @@ router.get('/:id', async (req, res) => {
 router.post('/upload', upload.single('file'), async (req, res) => {
     try {
         const { patientId, folderType } = req.body;
-        if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+        console.log(`📂 File Upload Handshake: Patient=${patientId}, Folder=${folderType}`);
 
+        if (!req.file) {
+            console.error('❌ Upload Error: No file payload detected in request.');
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        console.log(`✅ File synchronized to vault: ${req.file.path}`);
         res.json({
             message: 'File uploaded successfully',
             filename: req.file.filename,
@@ -52,6 +75,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
             type: folderType
         });
     } catch (error: any) {
+        console.error('🔥 Server Upload Failure:', error);
         res.status(500).json({ error: error.message });
     }
 });

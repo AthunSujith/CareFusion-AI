@@ -29,15 +29,18 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
         setMessage('');
 
         const formData = new FormData();
-        formData.append('file', file);
         formData.append('patientId', patientId);
         formData.append('folderType', folderType);
+        formData.append('file', file); // Append file last so req.body fields are available to Multer
 
         try {
             const baseUrl = getApiBase();
             const response = await fetch(`${baseUrl}${API_ENDPOINTS.PATIENTS}/upload`, {
                 method: 'POST',
-                headers: { 'bypass-tunnel-reminder': 'true' },
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                },
                 body: formData,
             });
 
