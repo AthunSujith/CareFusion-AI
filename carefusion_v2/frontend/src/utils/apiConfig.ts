@@ -9,10 +9,14 @@ const getStoredTunnel = () => {
 const DEFAULT_TUNNEL = 'https://clinical-vault-bridge-2026.loca.lt'; // Fallback
 
 export const getApiBase = () => {
+    // 1. Priority: Environment Variable (Vite/Next)
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    if (envUrl) return envUrl;
+
     const hostname = window.location.hostname;
     const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
 
-    // Default to the secure tunnel for global access
+    // 2. Default to the secure tunnel for global access (from localStorage setting)
     let storedTunnel = getStoredTunnel();
 
     // AUTO-MIGRATE: If stored tunnel is old/stale, clear it to use the new DEFAULT_TUNNEL
@@ -23,12 +27,12 @@ export const getApiBase = () => {
 
     const activeTunnel = (storedTunnel || DEFAULT_TUNNEL).replace(/\/$/, '');
 
-    // If on local machine, match the current hostname exactly to avoid cross-host CORS issues
+    // 3. If on local machine and no env var, default to local backend port 8000
     if (isLocal) {
-        return `http://${hostname}:5001`;
+        return `http://${hostname}:8000`;
     }
 
-    // Otherwise (e.g., on Vercel), use the hardcoded secure bridge
+    // 4. Otherwise (e.g., on Vercel), use the tunnel
     console.log('📡 Routed through CareFusion Global Bridge:', activeTunnel);
     return activeTunnel;
 };

@@ -133,7 +133,7 @@ const PatientDashboard = () => {
                     <NavIcon icon={<Activity />} active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} label="Home" />
                     <NavIcon icon={<HistoryIcon />} active={activeTab === 'history'} onClick={() => setActiveTab('history')} label="History" />
                     <NavIcon icon={<FileText />} active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} label="Reports" />
-                    <NavIcon icon={<Settings />} active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="Settings" />
+                    <NavIcon icon={<Settings />} active={activeTab === 'settings'} onClick={() => setShowBridgeSettings(true)} label="Settings" />
                 </nav>
 
                 <div className="mt-auto space-y-8 z-10">
