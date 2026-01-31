@@ -6,7 +6,7 @@ const getStoredTunnel = () => {
     }
 };
 
-const DEFAULT_TUNNEL = 'https://clinical-bridge-v2-dev.loca.lt'; // Fallback
+const DEFAULT_TUNNEL = 'https://clinical-vault-bridge-2026.loca.lt'; // Fallback
 
 export const getApiBase = () => {
     const hostname = window.location.hostname;
@@ -16,7 +16,7 @@ export const getApiBase = () => {
     let storedTunnel = getStoredTunnel();
 
     // AUTO-MIGRATE: If stored tunnel is old/stale, clear it to use the new DEFAULT_TUNNEL
-    if (storedTunnel && (storedTunnel.includes('v2-bridge') || storedTunnel.includes('doctor-bridge'))) {
+    if (storedTunnel && (storedTunnel.includes('v2-bridge') || storedTunnel.includes('doctor-bridge') || storedTunnel.includes('v2-dev'))) {
         localStorage.removeItem('carefusion_tunnel_url');
         storedTunnel = null;
     }

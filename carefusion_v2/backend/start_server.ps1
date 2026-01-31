@@ -1,9 +1,16 @@
 # CareFusion AI - Server Handshake Controller
 $BACKEND_DIR = "C:\CareFusion-AI\carefusion_v2\backend"
-$SUBDOMAIN = "clinical-bridge-v2-dev"
+$SUBDOMAIN = "clinical-vault-bridge-2026"
 $PORT = 5001
 
-$IP = (Invoke-RestMethod -Uri "https://loca.lt/mytunnelpassword?v=$([guid]::NewGuid())").Trim()
+# Fetch public IP for tunnel password
+try {
+    $IP_RESPONSE = Invoke-WebRequest -Uri "https://loca.lt/mytunnelpassword" -UseBasicParsing
+    $IP = $IP_RESPONSE.Content.Trim()
+} catch {
+    $IP = "Check terminal window logs"
+}
+
 Write-Host "Initializing CareFusion AI Clinical Server..." -ForegroundColor Cyan
 Write-Host "Your Tunnel Password is: $IP" -ForegroundColor Green
 
