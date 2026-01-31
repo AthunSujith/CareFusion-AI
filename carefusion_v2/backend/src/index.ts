@@ -12,34 +12,31 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// 1. Logging and Handshake
+// 1. ATOMIC Handshake & CORS Controller (Must be first)
 app.use((req, res, next) => {
-    const timestamp = new Date().toISOString();
-    const origin = req.headers.origin || 'INTERNAL';
-    console.log(`[${timestamp}] 📡 Handshake: ${req.method} ${req.url} | Origin: ${origin}`);
+    const origin = req.headers.origin || '*';
 
-    // Required for Firefox/Chrome connecting to localhost from a different port
+    // Set headers for ALL requests
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, bypass-tunnel-reminder, Access-Control-Allow-Private-Network');
     res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400');
     res.setHeader('X-Powered-By', 'CareFusion Clinical Node');
+
+    // Handle Preflight locally
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
+    // Log the request
+    console.log(`[${new Date().toISOString()}] 📡 Bridge Hit: ${req.method} ${req.url} | Origin: ${origin}`);
     next();
 });
 
-// 2. Permanent CORS Bridge
-app.use(cors({
-    origin: (origin, callback) => {
-        // Permit all local dev and deployment patterns
-        if (!origin || /localhost|127\.0\.0\.1|loca\.lt|vercel\.app/.test(origin)) {
-            callback(null, true);
-        } else {
-            console.warn(`🚨 Security Block: Unauthorized Origin [${origin}]`);
-            callback(null, false);
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'bypass-tunnel-reminder', 'Access-Control-Allow-Private-Network'],
-    optionsSuccessStatus: 200
-}));
+// Remove old logging and cors middleware as they are now consolidated above
+// (Deleted app.use logging and app.use cors blocks)
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

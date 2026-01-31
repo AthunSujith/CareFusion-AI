@@ -66,7 +66,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
             }
         } catch (error: any) {
             console.error('🔴 Upload error detail:', error);
-            setMessage(`❌ Connection Blocked: Check if backend is running on port 5000`);
+            setMessage(`❌ Connection Blocked: Check if backend is running on port 5001`);
         } finally {
             setUploading(false);
         }
