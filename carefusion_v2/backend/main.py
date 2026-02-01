@@ -21,19 +21,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    # Only process non-OPTIONS requests to avoid overlapping with CORSMiddleware
-    if request.method == "OPTIONS":
-        return await call_next(request)
-        
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    # Logging instead of just printing
-    print(f"DEBUG: {request.method} {request.url.path} - {response.status_code} ({process_time:.4f}s)")
-    return response
+# Non-essential monitoring middleware removed to ensure protocol stability through secure tunnels
 
 @app.on_event("startup")
 async def startup_db_client():
