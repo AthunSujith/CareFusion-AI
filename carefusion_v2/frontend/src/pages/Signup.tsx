@@ -6,6 +6,7 @@ import { getApiBase, API_ENDPOINTS } from '../utils/apiConfig';
 
 const Signup = () => {
     const [userType, setUserType] = useState('patient'); // 'patient' or 'doctor'
+    const [userId] = useState(() => `APP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
@@ -28,6 +29,7 @@ const Signup = () => {
         setIsUploading(true);
         const file = e.target.files[0];
         const formData = new FormData();
+        formData.append('user_id', userId);
         formData.append('file', file);
         formData.append('doc_type', 'identity_proof');
 
@@ -71,6 +73,7 @@ const Signup = () => {
         setIsLoading(true);
 
         const basePayload = {
+            user_id: userId,
             full_name: fullName,
             email: email,
             phone: phone,

@@ -62,20 +62,9 @@ async def upload_document(
 
 @router.post("/patient")
 async def submit_patient_signup(
-    signup_data: str = Form(...),  # JSON string
+    signup_model: PendingUserSignup,
     db = Depends(get_db)
 ):
-    try:
-        data = json.loads(signup_data)
-        # Validate with Pydantic
-        # We might need to handle the fact that 'documents' in PendingUserSignup expects DocumentMetadata objects
-        # The frontend should pass the metadata objects returned from /upload-document
-        signup_model = PendingUserSignup(**data)
-    except ValidationError as e:
-        raise HTTPException(status_code=400, detail=f"Validation Error: {e}")
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON format")
-
     # Check for existing
     if await check_existing_user(signup_model.personal_info.email, signup_model.personal_info.phone, db):
         raise HTTPException(status_code=409, detail="User with this email or phone already exists")
@@ -93,16 +82,9 @@ async def submit_patient_signup(
 
 @router.post("/doctor")
 async def submit_doctor_signup(
-    signup_data: str = Form(...),
+    signup_model: PendingDoctorSignup,
     db = Depends(get_db)
 ):
-    try:
-        data = json.loads(signup_data)
-        signup_model = PendingDoctorSignup(**data)
-    except ValidationError as e:
-        raise HTTPException(status_code=400, detail=f"Validation Error: {e}")
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON format")
 
     # Basic NMC Check mockup (In production, call external API)
     if settings.REQUIRE_NMC_VERIFICATION:

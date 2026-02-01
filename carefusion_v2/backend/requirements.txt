@@ -4,6 +4,7 @@ python-multipart
 pydantic-settings
 motor
 aiofiles
-python-jose[cryptography]
+PyJWT
 passlib[bcrypt]
 httpx
+email-validator
