@@ -1,21 +1,29 @@
 {
-  "name": "CarfusionAI",
-  "short_name": "CarfusionAI",
-  "description": "Advanced Medical AI Support Platform",
+  "name": "CareFusion AI Assistant",
+  "short_name": "CareFusion",
+  "description": "Clinical Intelligence & Patient Vault for Android",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0b",
-  "theme_color": "#00d2ff",
+  "orientation": "portrait",
+  "background_color": "#112250",
+  "theme_color": "#112250",
+  "id": "com.carefusion.ai",
+  "categories": [
+    "medical",
+    "health"
+  ],
   "icons": [
     {
       "src": "/icon.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

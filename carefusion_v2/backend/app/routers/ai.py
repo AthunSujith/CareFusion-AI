@@ -32,6 +32,7 @@ class SymptomSaveRequest(BaseModel):
     patientId: str
     symptomText: str
     aiResponse: Any
+    category: Optional[str] = "General"
 
 class ImagingSaveRequest(BaseModel):
     userId: str
@@ -41,6 +42,7 @@ class ImagingSaveRequest(BaseModel):
     confidence: float
     observations: str
     analysisId: Optional[str]
+    category: Optional[str] = "General"
 
 class GenomicsSaveRequest(BaseModel):
     userId: str
@@ -49,6 +51,7 @@ class GenomicsSaveRequest(BaseModel):
     variants: List[str]
     summary: str
     interpretation: str
+    category: Optional[str] = "General"
 
 # Helper Functions
 import asyncio
@@ -254,11 +257,11 @@ async def general_chat(
     prompt: str = Form(...),
     userId: str = Form(...),
     pdf_doc: Optional[UploadFile] = File(None),
-    image_doc: Optional[UploadFile] = File(None)
+    image_doc: Optional[UploadFile] = File(None),
+    category: Optional[str] = Form("General")
 ):
     args = [prompt, "--user", userId]
     if pdf_doc:
-        # Save PDF temporarily
         temp_path = os.path.join(settings.USER_DATA_ROOT, userId, "temp_chat", f"{uuid.uuid4()}_{pdf_doc.filename}")
         os.makedirs(os.path.dirname(temp_path), exist_ok=True)
         async with aiofiles.open(temp_path, 'wb') as out_file:
@@ -266,7 +269,6 @@ async def general_chat(
         args.extend(["--pdf", temp_path])
     
     if image_doc:
-        # Save Image temporarily
         temp_path = os.path.join(settings.USER_DATA_ROOT, userId, "temp_chat", f"{uuid.uuid4()}_{image_doc.filename}")
         os.makedirs(os.path.dirname(temp_path), exist_ok=True)
         async with aiofiles.open(temp_path, 'wb') as out_file:
@@ -276,16 +278,31 @@ async def general_chat(
     analysis_id = str(uuid.uuid4())
     analysis_jobs[analysis_id] = {"status": "processing", "result": None, "error": None}
 
-    async def run_in_bg(id, py, script, args):
+    async def run_in_bg(id, py, script, args, cat):
         try:
             output = await run_script(py, script, args)
             data = extract_json(output)
             analysis_jobs[id] = {"status": "completed", "result": data, "error": None}
+            
+            # Auto-save clinical record
+            db = get_db()
+            record = {
+                "patientId": userId,
+                "doctorId": "ai-node",
+                "timestamp": datetime.utcnow().isoformat(),
+                "recordType": "symptom",
+                "category": cat,
+                "moduleData": {
+                    "symptomText": prompt,
+                    "aiResponse": data
+                }
+            }
+            await db.records.insert_one(record)
         except Exception as e:
             print(f"Chat analysis failed: {str(e)}")
             analysis_jobs[id] = {"status": "failed", "result": None, "error": str(e)}
 
-    asyncio.create_task(run_in_bg(analysis_id, settings.AI_PYTHON_EXECUTABLE, settings.MODULE_CHAT_SCRIPT_PATH, args))
+    asyncio.create_task(run_in_bg(analysis_id, settings.AI_PYTHON_EXECUTABLE, settings.MODULE_CHAT_SCRIPT_PATH, args, category))
     
     return {"status": "accepted", "analysisId": analysis_id}
 
@@ -299,6 +316,7 @@ async def save_symptom_record(req: SymptomSaveRequest):
         "patientId": req.patientId,
         "timestamp": datetime.utcnow().isoformat(),
         "recordType": "symptom",
+        "category": req.category if req.category else "General",
         "moduleData": {
             "symptomText": req.symptomText,
             "aiResponse": req.aiResponse
@@ -315,6 +333,7 @@ async def save_imaging_record(req: ImagingSaveRequest):
         "patientId": req.patientId,
         "timestamp": datetime.utcnow().isoformat(),
         "recordType": "imaging",
+        "category": req.category if req.category else "General",
         "moduleData": {
             "imagePath": req.imagePath,
             "prediction": req.prediction,
@@ -334,6 +353,7 @@ async def save_genomics_record(req: GenomicsSaveRequest):
         "patientId": req.patientId,
         "timestamp": datetime.utcnow().isoformat(),
         "recordType": "genomics",
+        "category": req.category if req.category else "General",
         "moduleData": {
             "fileName": req.fileName,
             "variants": req.variants,
@@ -351,6 +371,20 @@ async def get_records(doctor_id: str, patientId: Optional[str] = Query(None)):
     if patientId:
         query["patientId"] = patientId
         
+    cursor = db.records.find(query).sort("timestamp", -1)
+    records = []
+    async for doc in cursor:
+        doc["_id"] = str(doc["_id"])
+        records.append(doc)
+        
+    return {"status": "success", "records": records}
+
+@router.get("/records/patient/{patientId}")
+async def get_patient_records(patientId: str):
+    db = get_db()
+    # For clinical data, we query only by patientId
+    query = {"patientId": patientId}
+    
     cursor = db.records.find(query).sort("timestamp", -1)
     records = []
     async for doc in cursor:

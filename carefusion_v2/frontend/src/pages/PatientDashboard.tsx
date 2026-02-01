@@ -22,12 +22,16 @@ import {
     Send,
     Upload,
     X as XIcon,
-    FileSearch
+    FileSearch,
+    Folder,
+    Plus
 } from 'lucide-react';
 
 
 import { Link } from 'react-router-dom';
 import FileUpload from '../components/FileUpload';
+import MobileAppHeader from '../components/MobileAppHeader';
+import { isStandalone } from '../utils/pwa';
 import { getApiBase, API_ENDPOINTS, setApiBase } from '../utils/apiConfig';
 
 
@@ -40,6 +44,9 @@ const PatientDashboard = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [timeLeft, setTimeLeft] = useState<number>(0);
     const [copied, setCopied] = useState(false);
+
+    const [categories, setCategories] = useState<string[]>(['General']);
+    const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
     const PATIENT_ID = 'PAT-001-X'; // Unified patient ID for this demo
     const [showBridgeSettings, setShowBridgeSettings] = useState(false);
@@ -96,7 +103,7 @@ const PatientDashboard = () => {
         setIsLoading(true);
         try {
             const baseUrl = getApiBase();
-            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/dr-sarah-chen?patientId=${PATIENT_ID}`, {
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/patient/${PATIENT_ID}`, {
                 headers: {
                     'Authorization': 'Bearer clinical-access-token-2026',
                     'bypass-tunnel-reminder': 'true'
@@ -114,22 +121,66 @@ const PatientDashboard = () => {
         }
     };
 
+    const fetchCategories = async () => {
+        try {
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.PATIENTS}/patients/${PATIENT_ID}/categories`, {
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                }
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                setCategories(data.categories);
+            }
+        } catch (error) {
+            console.error('Failed to fetch categories:', error);
+        }
+    };
+
     useEffect(() => {
         fetchPatientData();
+        fetchCategories();
     }, []);
 
+    const filteredRecords = selectedCategory === 'All'
+        ? records
+        : records.filter(r => r.category === selectedCategory);
 
-    const generateCode = () => {
+
+    const generateCode = async () => {
         setIsGenerating(true);
         setCopied(false);
-        setTimeout(() => {
-            const code = Math.random().toString(36).substring(2, 5).toUpperCase() + '-' +
-                Math.random().toString(36).substring(2, 5).toUpperCase() + '-' +
-                Math.random().toString(36).substring(2, 5).toUpperCase();
-            setAccessCode(code);
-            setTimeLeft(120); // 2 minutes expiry
+
+        // Generate a clean code
+        const code = Math.random().toString(36).substring(2, 5).toUpperCase() + '-' +
+            Math.random().toString(36).substring(2, 5).toUpperCase() + '-' +
+            Math.random().toString(36).substring(2, 5).toUpperCase();
+
+        try {
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}/api/v2/patients/handshake/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patientId: PATIENT_ID,
+                    code: code,
+                    patientName: "Sarah Williams"
+                })
+            });
+
+            if (response.ok) {
+                setAccessCode(code);
+                setTimeLeft(300); // 5 minutes to match backend
+            } else {
+                console.error("Failed to register handshake");
+            }
+        } catch (error) {
+            console.error("Handshake Error:", error);
+        } finally {
             setIsGenerating(false);
-        }, 800);
+        }
     };
 
     const copyToClipboard = () => {
@@ -151,6 +202,7 @@ const PatientDashboard = () => {
         const formData = new FormData();
         formData.append('prompt', chatInput || "Analyze this medical document.");
         formData.append('userId', PATIENT_ID);
+        formData.append('category', selectedCategory === 'All' ? 'General' : selectedCategory);
         if (chatPdf) formData.append('pdf_doc', chatPdf);
 
         try {
@@ -187,6 +239,8 @@ const PatientDashboard = () => {
                                 type: 'bot',
                                 text: statusData.result?.ai_response || "Analysis complete."
                             }]);
+                            fetchPatientData(); // Refresh history
+                            fetchCategories();  // Refresh folders
                         } else if (statusData.status === 'failed') {
                             completed = true;
                             throw new Error(statusData.error || "AI analysis failed.");
@@ -243,7 +297,9 @@ const PatientDashboard = () => {
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto custom-scrollbar relative">
+            <main className={`flex-1 overflow-y-auto custom-scrollbar relative ${isStandalone() ? 'pt-0 pb-24' : ''}`}>
+                <MobileAppHeader title="CareFusion Patient" />
+
                 {/* Global Luxury Background Image */}
                 <div className="fixed inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply z-0">
                     <img
@@ -365,6 +421,44 @@ const PatientDashboard = () => {
                                             </div>
                                         </section>
 
+                                        {/* Condition Folders Navigation */}
+                                        <section className="space-y-6">
+                                            <div className="flex items-center justify-between mb-2 px-2">
+                                                <h3 className="text-xs font-black text-black/40 uppercase tracking-[0.2em]">Medical Condition Folders</h3>
+                                                <button
+                                                    onClick={() => {
+                                                        const name = prompt("Enter new medical condition / folder name:");
+                                                        if (name && !categories.includes(name)) {
+                                                            setCategories([...categories, name]);
+                                                            setSelectedCategory(name);
+                                                        }
+                                                    }}
+                                                    className="flex items-center gap-2 text-[10px] font-black text-[#112250] hover:text-[#3C507D] transition-colors uppercase tracking-widest"
+                                                >
+                                                    <Plus size={14} /> New Folder
+                                                </button>
+                                            </div>
+                                            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                                                <button
+                                                    onClick={() => setSelectedCategory('All')}
+                                                    className={`shrink-0 px-6 py-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${selectedCategory === 'All' ? 'bg-[#112250] text-[#E0C58F] border-[#112250] shadow-lg' : 'bg-white text-black border-[#D9CBC2] opacity-60 hover:opacity-100'}`}
+                                                >
+                                                    <Activity size={18} />
+                                                    <span className="font-bold text-sm">All Records</span>
+                                                </button>
+                                                {categories.map(cat => (
+                                                    <button
+                                                        key={cat}
+                                                        onClick={() => setSelectedCategory(cat)}
+                                                        className={`shrink-0 px-6 py-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${selectedCategory === cat ? 'bg-[#112250] text-[#E0C58F] border-[#112250] shadow-lg' : 'bg-white text-black border-[#D9CBC2] opacity-60 hover:opacity-100'}`}
+                                                    >
+                                                        <Folder size={18} />
+                                                        <span className="font-bold text-sm">{cat}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </section>
+
                                         {/* Records - Highly Readable Cards */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                                             <section className="space-y-6">
@@ -375,19 +469,19 @@ const PatientDashboard = () => {
                                                 <div className="space-y-5">
                                                     {isLoading ? (
                                                         <p className="text-xs text-black/40 animate-pulse p-4">Syncing History...</p>
-                                                    ) : records.length > 0 ? (
-                                                        records.slice(0, 3).map((r, i) => (
+                                                    ) : filteredRecords.length > 0 ? (
+                                                        filteredRecords.slice(0, 3).map((r, i) => (
                                                             <RecordCard
                                                                 key={i}
-                                                                title={r.recordType === 'imaging' ? `Scan: ${r.moduleData.prediction}` : r.recordType === 'genomics' ? 'Genomic Sequence' : 'Symptom Case'}
-                                                                desc={r.recordType === 'imaging' ? 'Radiology Report' : r.recordType === 'genomics' ? 'DNA Profile' : 'AI Reasoning'}
+                                                                title={r.recordType === 'imaging' ? `Scan: ${r.moduleData.prediction}` : r.recordType === 'genomics' ? 'Genomic Sequence' : r.recordType === 'document' ? r.moduleData.filename : 'Symptom Case'}
+                                                                desc={r.recordType === 'imaging' ? 'Radiology Report' : r.recordType === 'genomics' ? 'DNA Profile' : r.recordType === 'document' ? 'Clinical Document' : 'AI Reasoning'}
                                                                 date={new Date(r.timestamp).toLocaleDateString()}
-                                                                status="Stored"
-                                                                icon={r.recordType === 'imaging' ? <Activity size={24} /> : r.recordType === 'genomics' ? <Dna size={24} /> : <FileText size={24} />}
+                                                                status={r.category || "Stored"}
+                                                                icon={r.recordType === 'imaging' ? <Activity size={24} /> : r.recordType === 'genomics' ? <Dna size={24} /> : r.recordType === 'document' ? <FileText size={24} /> : <FileText size={24} />}
                                                             />
                                                         ))
                                                     ) : (
-                                                        <p className="text-xs text-black/40 p-4">No clinical history found.</p>
+                                                        <p className="text-xs text-black/40 p-4">No records in this category.</p>
                                                     )}
                                                 </div>
 
@@ -453,17 +547,17 @@ const PatientDashboard = () => {
                                                     <p className="text-black/60 font-medium">Upload and manage your clinical records securely.</p>
                                                 </div>
                                             </div>
-                                            <FileUpload patientId={PATIENT_ID} onUploadSuccess={fetchPatientData} />
+                                            <FileUpload patientId={PATIENT_ID} onUploadSuccess={() => { fetchPatientData(); fetchCategories(); }} />
                                         </section>
 
                                         <div className="grid gap-6">
-                                            {records.map((r, i) => (
+                                            {filteredRecords.map((r, i) => (
                                                 <RecordCard
                                                     key={i}
-                                                    title={r.recordType === 'imaging' ? `Scan Analysis: ${r.moduleData.prediction}` : r.recordType === 'genomics' ? 'Genomic Sequence Manifest' : 'Symptom AI reasoning'}
+                                                    title={r.recordType === 'imaging' ? `Scan Analysis: ${r.moduleData.prediction}` : r.recordType === 'genomics' ? 'Genomic Sequence Manifest' : r.recordType === 'document' ? r.moduleData.filename : 'Symptom AI reasoning'}
                                                     desc={`Clinical Record - ID: ${r._id.slice(-6)}`}
                                                     date={new Date(r.timestamp).toLocaleDateString()}
-                                                    status="Verified"
+                                                    status={r.category || "Verified"}
                                                     icon={r.recordType === 'imaging' ? <Activity size={24} /> : r.recordType === 'genomics' ? <Dna size={24} /> : <FileText size={24} />}
                                                 />
                                             ))}
@@ -474,11 +568,14 @@ const PatientDashboard = () => {
                                         <section className="bg-white p-10 border-2 border-[#D9CBC2] rounded-[3rem]">
                                             <h3 className="text-2xl font-black mb-8">Longitudinal Medical History</h3>
                                             <div className="space-y-0 relative before:absolute before:left-8 before:top-4 before:bottom-4 before:w-1 before:bg-[#D9CBC2]">
-                                                {records.map((r, i) => (
+                                                {filteredRecords.map((r, i) => (
                                                     <div key={i} className="pl-20 py-8 relative">
                                                         <div className="absolute left-6 top-10 w-5 h-5 rounded-full bg-[#112250] border-4 border-white shadow-md z-10" />
-                                                        <div className="p-8 bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-[2rem] shadow-sm hover:border-[#112250] transition-colors">
-                                                            <p className="text-[10px] font-black text-[#112250] opacity-60 uppercase tracking-[0.2em] mb-2">{new Date(r.timestamp).toLocaleDateString()}</p>
+                                                        <div className="p-8 bg-white border-2 border-[#D9CBC2] rounded-[2rem] shadow-sm hover:border-[#E0C58F] transition-colors">
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <p className="text-[10px] font-black text-[#112250] opacity-60 uppercase tracking-[0.2em]">{new Date(r.timestamp).toLocaleDateString()}</p>
+                                                                <span className="px-3 py-1 bg-[#F5F0E9] rounded-full text-[9px] font-black text-[#112250] border border-[#D9CBC2] uppercase tracking-widest">{r.category || "General"}</span>
+                                                            </div>
                                                             <h5 className="text-xl font-bold text-black mb-3">{r.recordType.toUpperCase()} EVENT</h5>
                                                             <p className="text-sm text-black/60 font-medium leading-relaxed">
                                                                 {r.recordType === 'imaging' ? `Findings: ${r.moduleData.observations || r.moduleData.prediction}` :
@@ -488,8 +585,8 @@ const PatientDashboard = () => {
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {records.length === 0 && !isLoading && (
-                                                    <div className="p-20 text-center text-black/20 font-black uppercase tracking-widest">No historical data found.</div>
+                                                {filteredRecords.length === 0 && !isLoading && (
+                                                    <div className="p-20 text-center text-black/20 font-black uppercase tracking-widest">No historical data found in this category.</div>
                                                 )}
                                             </div>
                                         </section>
@@ -531,6 +628,16 @@ const PatientDashboard = () => {
                                             </div>
 
                                             <div className="space-y-4">
+                                                <div className="flex gap-4 items-center">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40">Condition Folder:</label>
+                                                    <select
+                                                        value={selectedCategory === 'All' ? 'General' : selectedCategory}
+                                                        onChange={(e) => setSelectedCategory(e.target.value)}
+                                                        className="bg-[#F5F0E9] border border-[#D9CBC2] rounded-lg px-3 py-1 text-[10px] font-black text-[#112250] outline-none"
+                                                    >
+                                                        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                                    </select>
+                                                </div>
                                                 {chatPdf && (
                                                     <div className="flex items-center justify-between p-3 bg-[#E0C58F]/10 border border-[#E0C58F] rounded-xl text-xs font-bold text-black">
                                                         <div className="flex items-center gap-2">
@@ -647,6 +754,25 @@ const PatientDashboard = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Mobile Bottom Navigation - Unified PWA look */}
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#112250] border-t border-[#D9CBC2]/20 flex items-center justify-around px-6 z-50 pb-safe">
+                <button onClick={() => setActiveTab('overview')} className={`p-3 rounded-xl transition-all ${activeTab === 'overview' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
+                    <Activity size={24} />
+                </button>
+                <button onClick={() => setActiveTab('history')} className={`p-3 rounded-xl transition-all ${activeTab === 'history' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
+                    <HistoryIcon size={24} />
+                </button>
+                <button onClick={() => setActiveTab('reports')} className={`p-3 rounded-xl transition-all ${activeTab === 'reports' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
+                    <FileText size={24} />
+                </button>
+                <button onClick={() => setActiveTab('aichat')} className={`p-3 rounded-xl transition-all ${activeTab === 'aichat' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
+                    <MessagesSquare size={24} />
+                </button>
+                <Link to="/login" className="p-3 rounded-xl text-rose-400">
+                    <LogOut size={24} />
+                </Link>
+            </div>
         </div>
     );
 };
@@ -655,11 +781,11 @@ const PatientDashboard = () => {
 // Sub-components
 const NavIcon = ({ icon, active, onClick, label }: { icon: React.ReactNode, active: boolean, onClick: () => void, label: string }) => (
     <div className="relative group cursor-pointer" onClick={onClick}>
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-[#E0C58F] text-black shadow-lg' : 'bg-transparent text-[#3C507D] hover:text-[#E0C58F]'
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-[#E0C58F] text-black shadow-lg' : 'bg-transparent text-white/70 hover:text-[#E0C58F]'
             }`}>
             {icon}
         </div>
-        <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#112250] text-[#E0C58F] text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-[100] shadow-xl">{label}</span>
+        <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#112250] text-[#E0C58F] text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-[100] shadow-xl border border-[#D9CBC2]/20">{label}</span>
     </div>
 );
 

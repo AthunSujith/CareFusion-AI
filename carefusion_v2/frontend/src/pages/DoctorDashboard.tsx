@@ -38,11 +38,14 @@ import {
     TrendingUp,
     TrendingDown,
     Info,
+    Folder,
     FileDown
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FileUpload from '../components/FileUpload';
 import { getApiBase, API_ENDPOINTS, setApiBase } from '../utils/apiConfig';
+import MobileAppHeader from '../components/MobileAppHeader';
+import { isStandalone } from '../utils/pwa';
 
 
 
@@ -120,13 +123,34 @@ const DoctorDashboard = () => {
     const [isTemporalProcessing, setIsTemporalProcessing] = useState(false);
     const [temporalObservation, setTemporalObservation] = useState('Patient reports worsening fatigue and persistent nocturnal cough over the last 3 weeks.');
 
-    const handleConnect = () => {
+    const handleConnect = async () => {
         if (syncCode.length === 11) {
             setIsEstablishing(true);
-            setTimeout(() => {
+            try {
+                const baseUrl = getApiBase();
+                const response = await fetch(`${baseUrl}/api/v2/patients/handshake/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: syncCode })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setSelectedPatient(data.patient);
+                    setIsEstablishing(false);
+                    // Reset sync code for next time
+                    setSyncCode('');
+                    setView('workspace');
+                } else {
+                    const error = await response.json();
+                    alert(error.detail || "Invalid Sync Code");
+                    setIsEstablishing(false);
+                }
+            } catch (error) {
+                console.error("Connection error:", error);
+                alert("Clinical Node Handshake Failed. Check your connection.");
                 setIsEstablishing(false);
-                setView('workspace');
-            }, 2000);
+            }
         }
     };
 
@@ -732,16 +756,16 @@ const DoctorDashboard = () => {
 
             {/* Mobile Bottom Navigation */}
             <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#112250] border-t border-[#D9CBC2]/20 flex items-center justify-around px-6 z-50">
-                <button onClick={() => setView('overview')} className={`p-3 rounded-xl transition-all ${view === 'overview' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-[#3C507D] hover:text-[#E0C58F]'}`}>
+                <button onClick={() => setView('overview')} className={`p-3 rounded-xl transition-all ${view === 'overview' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
                     <User size={24} />
                 </button>
-                <button onClick={() => setView('linkage')} className={`p-3 rounded-xl transition-all ${view === 'linkage' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-[#3C507D] hover:text-[#E0C58F]'}`}>
+                <button onClick={() => setView('linkage')} className={`p-3 rounded-xl transition-all ${view === 'linkage' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
                     <Database size={24} />
                 </button>
-                <button onClick={() => setView('history')} className={`p-3 rounded-xl transition-all ${view === 'history' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-[#3C507D] hover:text-[#E0C58F]'}`}>
+                <button onClick={() => setView('history')} className={`p-3 rounded-xl transition-all ${view === 'history' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
                     <HistoryIcon size={24} />
                 </button>
-                <button onClick={() => setView('linkage')} className="p-3 rounded-xl text-[#3C507D] hover:text-[#E0C58F]">
+                <button onClick={() => setView('linkage')} className="p-3 rounded-xl text-white/40 hover:text-[#E0C58F]">
                     <Bell size={24} />
                 </button>
                 <Link to="/login" className="p-3 rounded-xl text-rose-400">
@@ -750,7 +774,18 @@ const DoctorDashboard = () => {
             </div>
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto custom-scrollbar pb-24 lg:pb-0">
+            <main className={`flex-1 overflow-y-auto custom-scrollbar relative ${isStandalone() ? 'pt-0 pb-24' : ''}`}>
+                <MobileAppHeader title="CareFusion MD" />
+
+                {/* Global Luxury Background Texture */}
+                <div className="fixed inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply z-0">
+                    <img
+                        src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=2000"
+                        alt="bg"
+                        className="w-full h-full object-cover"
+                    />
+                </div>
+
                 <AnimatePresence mode="wait">
                     {view === 'overview' && (
                         <motion.section
@@ -758,7 +793,7 @@ const DoctorDashboard = () => {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="p-10 lg:p-16 space-y-16"
+                            className="p-10 lg:p-16 space-y-16 relative z-10"
                         >
                             <header className="space-y-6">
                                 <div className="inline-flex items-center gap-3 px-4 py-2 bg-[#D9CBC2]/20 border border-[#D9CBC2] rounded-xl">
@@ -837,364 +872,372 @@ const DoctorDashboard = () => {
                         </motion.section>
                     )}
 
-                    {view === 'linkage' && (
-                        <motion.section
-                            key="linkage"
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -30 }}
-                            className="flex-1 flex flex-col items-center justify-center p-10 lg:p-20"
-                        >
-                            <div className="glass-card max-w-2xl w-full p-12 lg:p-16 bg-white border-2 border-[#D9CBC2] shadow-2xl text-center space-y-12">
-                                <div className="w-20 h-20 rounded-2xl bg-[#F5F0E9] border border-[#D9CBC2] flex items-center justify-center text-[#112250] mx-auto shadow-inner">
-                                    <Fingerprint size={40} />
+                    {
+                        view === 'linkage' && (
+                            <motion.section
+                                key="linkage"
+                                initial={{ opacity: 0, y: 30 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -30 }}
+                                className="flex-1 flex flex-col items-center justify-center p-10 lg:p-20"
+                            >
+                                <div className="glass-card max-w-2xl w-full p-12 lg:p-16 bg-white border-2 border-[#D9CBC2] shadow-2xl text-center space-y-12">
+                                    <div className="w-20 h-20 rounded-2xl bg-[#F5F0E9] border border-[#D9CBC2] flex items-center justify-center text-[#112250] mx-auto shadow-inner">
+                                        <Fingerprint size={40} />
+                                    </div>
+                                    <div className="space-y-4">
+                                        <h2 className="text-3xl font-black text-black uppercase tracking-tight">Access Patient Lab</h2>
+                                        <p className="text-black font-bold uppercase tracking-widest text-xs opacity-60">Enter Verification Handshake Code</p>
+                                    </div>
+                                    <div className="space-y-10">
+                                        <input
+                                            type="text"
+                                            placeholder="XXX - XXX - XXX"
+                                            value={syncCode}
+                                            onChange={(e) => setSyncCode(e.target.value.toUpperCase())}
+                                            className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-3xl px-8 py-6 text-3xl font-black tracking-[0.2em] text-black text-center focus:border-[#E0C58F] focus:bg-white outline-none transition-all shadow-inner uppercase"
+                                            maxLength={11}
+                                        />
+                                        <button
+                                            onClick={handleConnect}
+                                            disabled={syncCode.length !== 11 || isEstablishing}
+                                            className="btn-premium bg-[#112250] text-[#E0C58F] w-full py-6 text-xl shadow-xl font-black uppercase tracking-widest shadow-[#112250]/30"
+                                        >
+                                            {isEstablishing ? <RefreshCw className="animate-spin text-[#E0C58F]" /> : "Verify and Establish Bridge"}
+                                        </button>
+                                    </div>
+                                    <div onClick={() => setView('overview')} className="text-black font-bold text-sm cursor-pointer hover:underline opacity-60">Cancel and Return</div>
                                 </div>
-                                <div className="space-y-4">
-                                    <h2 className="text-3xl font-black text-black uppercase tracking-tight">Access Patient Lab</h2>
-                                    <p className="text-black font-bold uppercase tracking-widest text-xs opacity-60">Enter Verification Handshake Code</p>
-                                </div>
-                                <div className="space-y-10">
-                                    <input
-                                        type="text"
-                                        placeholder="XXX - XXX - XXX"
-                                        value={syncCode}
-                                        onChange={(e) => setSyncCode(e.target.value.toUpperCase())}
-                                        className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-3xl px-8 py-6 text-3xl font-black tracking-[0.2em] text-black text-center focus:border-[#E0C58F] focus:bg-white outline-none transition-all shadow-inner uppercase"
-                                        maxLength={11}
-                                    />
-                                    <button
-                                        onClick={handleConnect}
-                                        disabled={syncCode.length !== 11 || isEstablishing}
-                                        className="btn-premium bg-[#112250] text-[#E0C58F] w-full py-6 text-xl shadow-xl font-black uppercase tracking-widest shadow-[#112250]/30"
-                                    >
-                                        {isEstablishing ? <RefreshCw className="animate-spin text-[#E0C58F]" /> : "Verify and Establish Bridge"}
+                            </motion.section>
+                        )
+                    }
+
+                    {
+                        view === 'workspace' && (
+                            <motion.section
+                                key="workspace"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="h-full flex overflow-hidden bg-[#F5F0E9]"
+                            >
+                                {/* Secondary Sidebar */}
+                                <div className="w-80 border-r border-[#D9CBC2] bg-white p-10 overflow-y-auto shrink-0 flex flex-col gap-10">
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-[#3C507D] uppercase tracking-widest">Active Patient</h3>
+                                        <div className="flex items-center gap-5 p-5 glass-card bg-[#F5F0E9]/50 border-[#D9CBC2] shadow-sm">
+                                            <div className="w-12 h-12 rounded-xl bg-[#E0C58F] flex items-center justify-center text-black font-bold text-lg">SW</div>
+                                            <div>
+                                                <h4 className="text-base font-bold text-black">Sarah Williams</h4>
+                                                <p className="text-[10px] font-bold text-black uppercase tracking-widest mt-1 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#112250] animate-pulse" /> LIVE STREAM</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col gap-8">
+                                        <h3 className="text-xs font-bold text-[#3C507D] uppercase tracking-widest">Analysis Lab</h3>
+                                        <div className="flex flex-col gap-4">
+                                            <ModuleCard label="Symptom AI" icon={<AudioLines />} active={activeModule === 'symptoms'} onClick={() => setActiveModule('symptoms')} />
+                                            <ModuleCard label="Imaging Analysis" icon={<ImageIcon />} active={activeModule === 'imaging'} onClick={() => setActiveModule('imaging')} />
+                                            <ModuleCard label="DNA Sequence" icon={<Dna />} active={activeModule === 'genomics'} onClick={() => setActiveModule('genomics')} />
+                                            <ModuleCard label="Health Drift" icon={<Clock />} active={activeModule === 'temporal'} onClick={() => setActiveModule('temporal')} />
+                                        </div>
+                                    </div>
+
+                                    <button onClick={() => setView('overview')} className="btn-premium bg-transparent border-2 border-[#D9CBC2] text-[#112250] w-full py-4 flex items-center gap-2 justify-center font-bold hover:bg-[#D9CBC2]/20">
+                                        <X size={18} /> Exit Lab
                                     </button>
                                 </div>
-                                <div onClick={() => setView('overview')} className="text-black font-bold text-sm cursor-pointer hover:underline opacity-60">Cancel and Return</div>
-                            </div>
-                        </motion.section>
-                    )}
 
-                    {view === 'workspace' && (
-                        <motion.section
-                            key="workspace"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="h-full flex overflow-hidden bg-[#F5F0E9]"
-                        >
-                            {/* Secondary Sidebar */}
-                            <div className="w-80 border-r border-[#D9CBC2] bg-white p-10 overflow-y-auto shrink-0 flex flex-col gap-10">
-                                <div className="space-y-4">
-                                    <h3 className="text-xs font-bold text-[#3C507D] uppercase tracking-widest">Active Patient</h3>
-                                    <div className="flex items-center gap-5 p-5 glass-card bg-[#F5F0E9]/50 border-[#D9CBC2] shadow-sm">
-                                        <div className="w-12 h-12 rounded-xl bg-[#E0C58F] flex items-center justify-center text-black font-bold text-lg">SW</div>
-                                        <div>
-                                            <h4 className="text-base font-bold text-black">Sarah Williams</h4>
-                                            <p className="text-[10px] font-bold text-black uppercase tracking-widest mt-1 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#112250] animate-pulse" /> LIVE STREAM</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex-1 flex flex-col gap-8">
-                                    <h3 className="text-xs font-bold text-[#3C507D] uppercase tracking-widest">Analysis Lab</h3>
-                                    <div className="flex flex-col gap-4">
-                                        <ModuleCard label="Symptom AI" icon={<AudioLines />} active={activeModule === 'symptoms'} onClick={() => setActiveModule('symptoms')} />
-                                        <ModuleCard label="Imaging Analysis" icon={<ImageIcon />} active={activeModule === 'imaging'} onClick={() => setActiveModule('imaging')} />
-                                        <ModuleCard label="DNA Sequence" icon={<Dna />} active={activeModule === 'genomics'} onClick={() => setActiveModule('genomics')} />
-                                        <ModuleCard label="Health Drift" icon={<Clock />} active={activeModule === 'temporal'} onClick={() => setActiveModule('temporal')} />
-                                    </div>
-                                </div>
-
-                                <button onClick={() => setView('overview')} className="btn-premium bg-transparent border-2 border-[#D9CBC2] text-[#112250] w-full py-4 flex items-center gap-2 justify-center font-bold hover:bg-[#D9CBC2]/20">
-                                    <X size={18} /> Exit Lab
-                                </button>
-                            </div>
-
-                            {/* Node Workspace area */}
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                <div className="max-w-6xl mx-auto p-12 min-h-full flex flex-col">
-                                    <AnimatePresence mode="wait">
-                                        {activeModule === 'symptoms' ? (
-                                            <motion.div key="chat-node" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex-1 flex flex-col gap-8">
-                                                <div className="flex-1 glass-card bg-white border-2 border-[#3C507D] rounded-[3rem] p-8 space-y-8 min-h-[35rem] flex flex-col shadow-2xl">
-                                                    <div className="flex-1 border-b border-[#D9CBC2] py-6 overflow-y-auto custom-scrollbar space-y-8">
-                                                        {messages.map((m, idx) => (
-                                                            <div key={m.id} className="space-y-4">
-                                                                <ChatMessage type={m.type} text={m.text} />
-                                                                {m.richData && (
-                                                                    <SymptomResult
-                                                                        data={m.richData}
-                                                                        onSave={() => {
-                                                                            // Find the previous user message for symptom text
-                                                                            const prevText = messages[idx - 1]?.text || 'User input';
-                                                                            handleSaveSymptomRecord(prevText, m.richData);
-                                                                        }}
-                                                                    />
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                        {isThinking && (
-                                                            <div className="flex justify-start">
-                                                                <div className="bg-[#F5F0E9] border-2 border-[#D9CBC2] p-4 rounded-2xl flex gap-1">
-                                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce" />
-                                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.2s]" />
-                                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.4s]" />
+                                {/* Node Workspace area */}
+                                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                    <div className="max-w-6xl mx-auto p-12 min-h-full flex flex-col">
+                                        <AnimatePresence mode="wait">
+                                            {activeModule === 'symptoms' ? (
+                                                <motion.div key="chat-node" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex-1 flex flex-col gap-8">
+                                                    <div className="flex-1 glass-card bg-white border-2 border-[#3C507D] rounded-[3rem] p-8 space-y-8 min-h-[35rem] flex flex-col shadow-2xl">
+                                                        <div className="flex-1 border-b border-[#D9CBC2] py-6 overflow-y-auto custom-scrollbar space-y-8">
+                                                            {messages.map((m, idx) => (
+                                                                <div key={m.id} className="space-y-4">
+                                                                    <ChatMessage type={m.type} text={m.text} />
+                                                                    {m.richData && (
+                                                                        <SymptomResult
+                                                                            data={m.richData}
+                                                                            onSave={() => {
+                                                                                // Find the previous user message for symptom text
+                                                                                const prevText = messages[idx - 1]?.text || 'User input';
+                                                                                handleSaveSymptomRecord(prevText, m.richData);
+                                                                            }}
+                                                                        />
+                                                                    )}
                                                                 </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-4 pt-6">
-                                                        <div className="flex-1 relative">
-                                                            <input
-                                                                type="text"
-                                                                value={inputText}
-                                                                onChange={(e) => setInputText(e.target.value)}
-                                                                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                                                placeholder="Type symptom manifest..."
-                                                                className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl px-6 py-4 text-[#112250] outline-none focus:border-[#E0C58F] transition-all font-medium"
-                                                            />
-                                                            <button onClick={handleSendMessage} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#3C507D] hover:scale-110 transition-transform">
-                                                                <Send size={20} />
-                                                            </button>
-                                                        </div>
-                                                        <button
-                                                            onClick={handleVoiceToggle}
-                                                            className={`p-4 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all ${isRecording ? 'bg-rose-600 text-white animate-pulse' : 'bg-[#E0C58F] text-black border border-[#D9CBC2]'}`}
-                                                            title={isRecording ? "Stop Recording" : "Start Voice Analysis"}
-                                                        >
-                                                            <Mic size={24} className={isRecording ? "text-white" : "text-black"} />
-                                                        </button>
-                                                        <button className="p-4 rounded-2xl bg-[#D9CBC2] text-[#112250] border border-[#3C507D]/20 hover:bg-white transition-all">
-                                                            <Upload size={24} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        ) : activeModule === 'imaging' ? (
-                                            <motion.div key="image-node" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col">
-                                                <div className="glass-card w-full bg-[#112250] border-[#3C507D] p-10 flex flex-col gap-8 shadow-2xl relative overflow-hidden text-[#F5F0E9]">
-                                                    <div className="flex justify-between items-start mb-4">
-                                                        <div className="space-y-1">
-                                                            <h2 className="text-2xl font-bold text-[#E0C58F]">Medical Image Analysis</h2>
-                                                            <p className="text-[#D9CBC2] text-xs font-medium uppercase tracking-widest">AI-powered image diagnosis with heatmap visualization</p>
-                                                        </div>
-                                                        {selectedFile && !isUploading && (
-                                                            <button
-                                                                onClick={() => fileInputRef.current?.click()}
-                                                                className="flex items-center gap-2 px-4 py-2 bg-[#E0C58F]/10 text-[#E0C58F] border border-[#E0C58F]/20 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-[#E0C58F] hover:text-[#112250] transition-all"
-                                                            >
-                                                                <RefreshCw size={14} /> Re-upload
-                                                            </button>
-                                                        )}
-                                                    </div>
-
-                                                    {selectedFile ? (
-                                                        <ImagingResult
-                                                            file={selectedFile}
-                                                            result={analysisResult}
-                                                            loading={isUploading}
-                                                            onSave={handleSaveImagingRecord}
-                                                        />
-                                                    ) : (
-                                                        <div className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-[#3C507D] rounded-[2rem] bg-[#3C507D]/10 group hover:border-[#E0C58F] transition-all">
-                                                            <div className="w-20 h-20 rounded-full bg-[#E0C58F]/10 border border-[#E0C58F]/20 flex items-center justify-center text-[#E0C58F] mb-6">
-                                                                <ImageIcon size={40} />
-                                                            </div>
-                                                            <h4 className="text-xl font-bold text-white mb-2">Radiology Node Initialized</h4>
-                                                            <p className="text-[#D9CBC2] text-xs font-medium mb-10 max-w-xs text-center uppercase tracking-widest leading-loose">Upload X-Ray, CT, or MRI scans for high-fidelity clinical reasoning</p>
-                                                            <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" />
-                                                            <button onClick={() => fileInputRef.current?.click()} className="btn-premium bg-[#E0C58F] text-[#112250] px-16 py-5 text-lg font-black uppercase tracking-[0.2em]">Select Medical Scan</button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </motion.div>
-                                        ) : activeModule === 'genomics' ? (
-                                            <motion.div key="dna-node" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col">
-                                                <div className="glass-card w-full bg-[#112250] border-[#3C507D] p-10 flex flex-col gap-8 shadow-2xl min-h-[50rem] text-[#F5F0E9]">
-                                                    <div className="flex justify-between items-start mb-4">
-                                                        <div className="space-y-1">
-                                                            <h2 className="text-2xl font-bold text-[#E0C58F]">DNA Disease Analysis</h2>
-                                                            <p className="text-[#D9CBC2] text-xs font-medium uppercase tracking-widest">Genetic variant analysis from VCF files</p>
-                                                        </div>
-                                                        {vcfFile && (
-                                                            <button onClick={() => { setVcfFile(null); setDnaResult(null); }} className="text-[#D9CBC2] hover:text-white transition-colors"><X size={20} /></button>
-                                                        )}
-                                                    </div>
-
-                                                    {vcfFile ? (
-                                                        <DnaResult
-                                                            file={vcfFile}
-                                                            result={dnaResult}
-                                                            loading={isDnaProcessing}
-                                                            onAnalyze={triggerDnaAnalysis}
-                                                            onSave={handleSaveGenomicsRecord}
-                                                        />
-                                                    ) : (
-                                                        <div className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-[#3C507D] rounded-[2rem] bg-[#3C507D]/10 group hover:border-[#E0C58F] transition-all">
-                                                            <div className="w-20 h-20 rounded-full bg-[#E0C58F]/10 border border-[#E0C58F]/20 flex items-center justify-center text-[#E0C58F] mb-6">
-                                                                <Dna size={40} />
-                                                            </div>
-                                                            <h4 className="text-xl font-bold text-white mb-2">Genomics Node Initialized</h4>
-                                                            <p className="text-[#D9CBC2] text-xs font-medium mb-10 max-w-xs text-center uppercase tracking-widest leading-loose">Upload VCF or text-based genetic manifests for alignment</p>
-                                                            <input type="file" className="hidden" ref={vcfInputRef} onChange={handleDnaUpload} accept=".vcf,.txt" />
-                                                            <button onClick={() => vcfInputRef.current?.click()} className="btn-premium bg-[#E0C58F] text-[#112250] px-16 py-5 text-lg font-black uppercase tracking-[0.2em]">Select Genomic Record</button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </motion.div>
-                                        ) : (
-                                            <motion.div key="temporal-node" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col p-10 h-full overflow-y-auto custom-scrollbar">
-                                                <div className="max-w-4xl mx-auto w-full space-y-12">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="space-y-1">
-                                                            <h4 className="text-4xl font-black uppercase tracking-tight text-[#112250]">Health Drift</h4>
-                                                            <p className="text-[#3C507D] font-bold uppercase tracking-[0.2em] text-[10px]">Longitudinal Clinical Progression Monitoring</p>
-                                                        </div>
-                                                        <div className="p-6 bg-[#3C507D]/10 rounded-3xl border border-[#3C507D]/20 shadow-inner">
-                                                            <Clock size={40} className={`text-[#112250] ${isTemporalProcessing ? 'animate-spin' : ''}`} />
-                                                        </div>
-                                                    </div>
-
-                                                    {!temporalResult ? (
-                                                        <div className="space-y-8">
-                                                            <div className="p-8 bg-[#112250] text-[#F5F0E9] rounded-[2.5rem] space-y-6 shadow-2xl relative overflow-hidden group">
-                                                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                                                                    <Timer size={120} />
-                                                                </div>
-                                                                <div className="flex items-center gap-4 border-b border-[#3C507D]/30 pb-4">
-                                                                    <Timer className="text-[#E0C58F]" />
-                                                                    <span className="font-bold text-xs uppercase tracking-widest text-[#E0C58F]">New Insight Integration</span>
-                                                                </div>
-                                                                <div className="space-y-4">
-                                                                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Enter current clinical observations to correlate against history:</p>
-                                                                    <textarea
-                                                                        value={temporalObservation}
-                                                                        onChange={(e) => setTemporalObservation(e.target.value)}
-                                                                        placeholder="Enter new patterns, symptoms, or test results..."
-                                                                        className="w-full min-h-[120px] bg-[#3C507D]/20 border-2 border-[#3C507D]/30 rounded-2xl p-6 text-white outline-none focus:border-[#E0C58F]/50 transition-all font-medium text-sm resize-none"
-                                                                    />
-                                                                </div>
-                                                                <div className="flex gap-4">
-                                                                    <div className="h-1 flex-1 bg-[#3C507D]/50 rounded-full overflow-hidden">
-                                                                        {isTemporalProcessing && <motion.div initial={{ x: '-100%' }} animate={{ x: '100%' }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} className="h-full w-full bg-[#E0C58F]" />}
+                                                            ))}
+                                                            {isThinking && (
+                                                                <div className="flex justify-start">
+                                                                    <div className="bg-[#F5F0E9] border-2 border-[#D9CBC2] p-4 rounded-2xl flex gap-1">
+                                                                        <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce" />
+                                                                        <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.2s]" />
+                                                                        <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.4s]" />
                                                                     </div>
                                                                 </div>
-                                                                <button
-                                                                    onClick={triggerTemporalAnalysis}
-                                                                    disabled={isTemporalProcessing}
-                                                                    className="w-full py-5 bg-[#E0C58F] text-[#112250] font-black uppercase tracking-[0.3em] text-sm rounded-2xl hover:bg-white transition-all shadow-xl disabled:opacity-50"
-                                                                >
-                                                                    {isTemporalProcessing ? "Analyzing Biometric Drift..." : "Execute Longitudinal Scan"}
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-4 pt-6">
+                                                            <div className="flex-1 relative">
+                                                                <input
+                                                                    type="text"
+                                                                    value={inputText}
+                                                                    onChange={(e) => setInputText(e.target.value)}
+                                                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                                                    placeholder="Type symptom manifest..."
+                                                                    className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl px-6 py-4 text-[#112250] outline-none focus:border-[#E0C58F] transition-all font-medium"
+                                                                />
+                                                                <button onClick={handleSendMessage} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#3C507D] hover:scale-110 transition-transform">
+                                                                    <Send size={20} />
                                                                 </button>
                                                             </div>
+                                                            <button
+                                                                onClick={handleVoiceToggle}
+                                                                className={`p-4 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all ${isRecording ? 'bg-rose-600 text-white animate-pulse' : 'bg-[#E0C58F] text-black border border-[#D9CBC2]'}`}
+                                                                title={isRecording ? "Stop Recording" : "Start Voice Analysis"}
+                                                            >
+                                                                <Mic size={24} className={isRecording ? "text-white" : "text-black"} />
+                                                            </button>
+                                                            <button className="p-4 rounded-2xl bg-[#D9CBC2] text-[#112250] border border-[#3C507D]/20 hover:bg-white transition-all">
+                                                                <Upload size={24} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            ) : activeModule === 'imaging' ? (
+                                                <motion.div key="image-node" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col">
+                                                    <div className="glass-card w-full bg-[#112250] border-[#3C507D] p-10 flex flex-col gap-8 shadow-2xl relative overflow-hidden text-[#F5F0E9]">
+                                                        <div className="flex justify-between items-start mb-4">
+                                                            <div className="space-y-1">
+                                                                <h2 className="text-2xl font-bold text-[#E0C58F]">Medical Image Analysis</h2>
+                                                                <p className="text-[#D9CBC2] text-xs font-medium uppercase tracking-widest">AI-powered image diagnosis with heatmap visualization</p>
+                                                            </div>
+                                                            {selectedFile && !isUploading && (
+                                                                <button
+                                                                    onClick={() => fileInputRef.current?.click()}
+                                                                    className="flex items-center gap-2 px-4 py-2 bg-[#E0C58F]/10 text-[#E0C58F] border border-[#E0C58F]/20 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-[#E0C58F] hover:text-[#112250] transition-all"
+                                                                >
+                                                                    <RefreshCw size={14} /> Re-upload
+                                                                </button>
+                                                            )}
+                                                        </div>
 
-                                                            <div className="p-10 border-2 border-dashed border-[#D9CBC2] rounded-[2.5rem] bg-white/50 space-y-6">
-                                                                <div className="flex items-center gap-3 opacity-40">
-                                                                    <HistoryIcon size={16} />
-                                                                    <span className="text-[10px] font-bold uppercase tracking-widest">History Summary</span>
+                                                        {selectedFile ? (
+                                                            <ImagingResult
+                                                                file={selectedFile}
+                                                                result={analysisResult}
+                                                                loading={isUploading}
+                                                                onSave={handleSaveImagingRecord}
+                                                            />
+                                                        ) : (
+                                                            <div className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-[#3C507D] rounded-[2rem] bg-[#3C507D]/10 group hover:border-[#E0C58F] transition-all">
+                                                                <div className="w-20 h-20 rounded-full bg-[#E0C58F]/10 border border-[#E0C58F]/20 flex items-center justify-center text-[#E0C58F] mb-6">
+                                                                    <ImageIcon size={40} />
                                                                 </div>
-                                                                <p className="text-black/40 text-sm italic font-medium">Connect clinical nodes to build a temporal heatmap of patient health over months or years. The prediction engine identifies drift patterns before symptoms become critical.</p>
+                                                                <h4 className="text-xl font-bold text-white mb-2">Radiology Node Initialized</h4>
+                                                                <p className="text-[#D9CBC2] text-xs font-medium mb-10 max-w-xs text-center uppercase tracking-widest leading-loose">Upload X-Ray, CT, or MRI scans for high-fidelity clinical reasoning</p>
+                                                                <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" />
+                                                                <button onClick={() => fileInputRef.current?.click()} className="btn-premium bg-[#E0C58F] text-[#112250] px-16 py-5 text-lg font-black uppercase tracking-[0.2em]">Select Medical Scan</button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            ) : activeModule === 'genomics' ? (
+                                                <motion.div key="dna-node" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col">
+                                                    <div className="glass-card w-full bg-[#112250] border-[#3C507D] p-10 flex flex-col gap-8 shadow-2xl min-h-[50rem] text-[#F5F0E9]">
+                                                        <div className="flex justify-between items-start mb-4">
+                                                            <div className="space-y-1">
+                                                                <h2 className="text-2xl font-bold text-[#E0C58F]">DNA Disease Analysis</h2>
+                                                                <p className="text-[#D9CBC2] text-xs font-medium uppercase tracking-widest">Genetic variant analysis from VCF files</p>
+                                                            </div>
+                                                            {vcfFile && (
+                                                                <button onClick={() => { setVcfFile(null); setDnaResult(null); }} className="text-[#D9CBC2] hover:text-white transition-colors"><X size={20} /></button>
+                                                            )}
+                                                        </div>
+
+                                                        {vcfFile ? (
+                                                            <DnaResult
+                                                                file={vcfFile}
+                                                                result={dnaResult}
+                                                                loading={isDnaProcessing}
+                                                                onAnalyze={triggerDnaAnalysis}
+                                                                onSave={handleSaveGenomicsRecord}
+                                                            />
+                                                        ) : (
+                                                            <div className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-[#3C507D] rounded-[2rem] bg-[#3C507D]/10 group hover:border-[#E0C58F] transition-all">
+                                                                <div className="w-20 h-20 rounded-full bg-[#E0C58F]/10 border border-[#E0C58F]/20 flex items-center justify-center text-[#E0C58F] mb-6">
+                                                                    <Dna size={40} />
+                                                                </div>
+                                                                <h4 className="text-xl font-bold text-white mb-2">Genomics Node Initialized</h4>
+                                                                <p className="text-[#D9CBC2] text-xs font-medium mb-10 max-w-xs text-center uppercase tracking-widest leading-loose">Upload VCF or text-based genetic manifests for alignment</p>
+                                                                <input type="file" className="hidden" ref={vcfInputRef} onChange={handleDnaUpload} accept=".vcf,.txt" />
+                                                                <button onClick={() => vcfInputRef.current?.click()} className="btn-premium bg-[#E0C58F] text-[#112250] px-16 py-5 text-lg font-black uppercase tracking-[0.2em]">Select Genomic Record</button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            ) : (
+                                                <motion.div key="temporal-node" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col p-10 h-full overflow-y-auto custom-scrollbar">
+                                                    <div className="max-w-4xl mx-auto w-full space-y-12">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="space-y-1">
+                                                                <h4 className="text-4xl font-black uppercase tracking-tight text-[#112250]">Health Drift</h4>
+                                                                <p className="text-[#3C507D] font-bold uppercase tracking-[0.2em] text-[10px]">Longitudinal Clinical Progression Monitoring</p>
+                                                            </div>
+                                                            <div className="p-6 bg-[#3C507D]/10 rounded-3xl border border-[#3C507D]/20 shadow-inner">
+                                                                <Clock size={40} className={`text-[#112250] ${isTemporalProcessing ? 'animate-spin' : ''}`} />
                                                             </div>
                                                         </div>
-                                                    ) : (
-                                                        <TemporalResult
-                                                            result={temporalResult}
-                                                            onReset={() => setTemporalResult(null)}
-                                                            onSave={() => alert('Longitudinal drift analysis saved to persistent ledger.')}
-                                                        />
-                                                    )}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+
+                                                        {!temporalResult ? (
+                                                            <div className="space-y-8">
+                                                                <div className="p-8 bg-[#112250] text-[#F5F0E9] rounded-[2.5rem] space-y-6 shadow-2xl relative overflow-hidden group">
+                                                                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                                                                        <Timer size={120} />
+                                                                    </div>
+                                                                    <div className="flex items-center gap-4 border-b border-[#3C507D]/30 pb-4">
+                                                                        <Timer className="text-[#E0C58F]" />
+                                                                        <span className="font-bold text-xs uppercase tracking-widest text-[#E0C58F]">New Insight Integration</span>
+                                                                    </div>
+                                                                    <div className="space-y-4">
+                                                                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Enter current clinical observations to correlate against history:</p>
+                                                                        <textarea
+                                                                            value={temporalObservation}
+                                                                            onChange={(e) => setTemporalObservation(e.target.value)}
+                                                                            placeholder="Enter new patterns, symptoms, or test results..."
+                                                                            className="w-full min-h-[120px] bg-[#3C507D]/20 border-2 border-[#3C507D]/30 rounded-2xl p-6 text-white outline-none focus:border-[#E0C58F]/50 transition-all font-medium text-sm resize-none"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex gap-4">
+                                                                        <div className="h-1 flex-1 bg-[#3C507D]/50 rounded-full overflow-hidden">
+                                                                            {isTemporalProcessing && <motion.div initial={{ x: '-100%' }} animate={{ x: '100%' }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} className="h-full w-full bg-[#E0C58F]" />}
+                                                                        </div>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={triggerTemporalAnalysis}
+                                                                        disabled={isTemporalProcessing}
+                                                                        className="w-full py-5 bg-[#E0C58F] text-[#112250] font-black uppercase tracking-[0.3em] text-sm rounded-2xl hover:bg-white transition-all shadow-xl disabled:opacity-50"
+                                                                    >
+                                                                        {isTemporalProcessing ? "Analyzing Biometric Drift..." : "Execute Longitudinal Scan"}
+                                                                    </button>
+                                                                </div>
+
+                                                                <div className="p-10 border-2 border-dashed border-[#D9CBC2] rounded-[2.5rem] bg-white/50 space-y-6">
+                                                                    <div className="flex items-center gap-3 opacity-40">
+                                                                        <HistoryIcon size={16} />
+                                                                        <span className="text-[10px] font-bold uppercase tracking-widest">History Summary</span>
+                                                                    </div>
+                                                                    <p className="text-black/40 text-sm italic font-medium">Connect clinical nodes to build a temporal heatmap of patient health over months or years. The prediction engine identifies drift patterns before symptoms become critical.</p>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <TemporalResult
+                                                                result={temporalResult}
+                                                                onReset={() => setTemporalResult(null)}
+                                                                onSave={() => alert('Longitudinal drift analysis saved to persistent ledger.')}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
                                 </div>
-                            </div>
-                        </motion.section>
-                    )}
+                            </motion.section>
+                        )
+                    }
 
-                    {view === 'dossier' && (
-                        <DossierView
-                            patient={selectedPatient}
-                            onBack={() => setView('overview')}
-                            onWorkspace={() => setView('workspace')}
-                        />
-                    )}
+                    {
+                        view === 'dossier' && (
+                            <DossierView
+                                patient={selectedPatient}
+                                onBack={() => setView('overview')}
+                                onWorkspace={() => setView('workspace')}
+                            />
+                        )
+                    }
 
-                    {view === 'aichat' && (
-                        <motion.section
-                            key="aichat"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="p-10 lg:p-16 h-full flex flex-col"
-                        >
-                            <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-10">
-                                <header className="space-y-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-16 h-16 rounded-2xl bg-[#112250] flex items-center justify-center text-[#E0C58F] shadow-xl">
-                                            <Bot size={32} />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-3xl font-black text-black tracking-tight">MedGemma Assistant</h2>
-                                            <p className="text-sm font-bold text-[#3C507D] uppercase tracking-widest">Medical Reasoning Engine v1.5 (4B)</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-black/60 font-medium leading-relaxed max-w-2xl">
-                                        Clinical reasoning agent designed for secure medical document summarization and disease pattern analysis.
-                                    </p>
-                                </header>
-
-                                <div className="flex-1 bg-white border-2 border-[#D9CBC2] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden">
-                                    <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8">
-                                        {chatMessages.map(m => (
-                                            <ChatMessage key={m.id} type={m.type} text={m.text} />
-                                        ))}
-                                        {isChatThinking && (
-                                            <div className="flex justify-start">
-                                                <div className="bg-[#F5F0E9] border-2 border-[#D9CBC2] p-4 rounded-2xl flex gap-1">
-                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce" />
-                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.2s]" />
-                                                    <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.4s]" />
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="p-8 bg-[#F5F0E9]/30 border-t border-[#D9CBC2]">
-                                        {chatPdf && (
-                                            <div className="mb-4 flex items-center justify-between p-4 bg-[#E0C58F]/20 border border-[#E0C58F] rounded-xl">
-                                                <div className="flex items-center gap-3">
-                                                    <FileText className="text-[#112250]" />
-                                                    <span className="text-sm font-bold text-black">{chatPdf.name}</span>
-                                                </div>
-                                                <button onClick={() => setChatPdf(null)} className="text-rose-600 hover:scale-110 transition-transform"><X size={18} /></button>
-                                            </div>
-                                        )}
+                    {
+                        view === 'aichat' && (
+                            <motion.section
+                                key="aichat"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="p-10 lg:p-16 h-full flex flex-col"
+                            >
+                                <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-10">
+                                    <header className="space-y-4">
                                         <div className="flex items-center gap-4">
-                                            <input type="file" className="hidden" ref={chatPdfInputRef} accept=".pdf" onChange={(e) => setChatPdf(e.target.files?.[0] || null)} />
-                                            <button onClick={() => chatPdfInputRef.current?.click()} className="p-4 bg-white border border-[#D9CBC2] rounded-2xl text-[#112250] hover:bg-white transition-all shadow-sm group">
-                                                <Upload size={24} className="group-hover:scale-110 transition-transform" />
-                                            </button>
-                                            <div className="flex-1 relative">
-                                                <input
-                                                    type="text"
-                                                    value={chatInput}
-                                                    onChange={(e) => setChatInput(e.target.value)}
-                                                    onKeyPress={(e) => e.key === 'Enter' && handleSendGeneralChat()}
-                                                    placeholder="Ask MedGemma anything..."
-                                                    className="w-full bg-white border-2 border-[#D9CBC2] rounded-2xl px-6 py-4 text-[#112250] outline-none focus:border-[#E0C58F] transition-all font-medium"
-                                                />
-                                                <button onClick={handleSendGeneralChat} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#3C507D] hover:scale-110 transition-transform">
-                                                    <Send size={24} />
+                                            <div className="w-16 h-16 rounded-2xl bg-[#112250] flex items-center justify-center text-[#E0C58F] shadow-xl">
+                                                <Bot size={32} />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-3xl font-black text-black tracking-tight">MedGemma Assistant</h2>
+                                                <p className="text-sm font-bold text-[#3C507D] uppercase tracking-widest">Medical Reasoning Engine v1.5 (4B)</p>
+                                            </div>
+                                        </div>
+                                        <p className="text-black/60 font-medium leading-relaxed max-w-2xl">
+                                            Clinical reasoning agent designed for secure medical document summarization and disease pattern analysis.
+                                        </p>
+                                    </header>
+
+                                    <div className="flex-1 bg-white border-2 border-[#D9CBC2] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden">
+                                        <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8">
+                                            {chatMessages.map(m => (
+                                                <ChatMessage key={m.id} type={m.type} text={m.text} />
+                                            ))}
+                                            {isChatThinking && (
+                                                <div className="flex justify-start">
+                                                    <div className="bg-[#F5F0E9] border-2 border-[#D9CBC2] p-4 rounded-2xl flex gap-1">
+                                                        <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce" />
+                                                        <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.2s]" />
+                                                        <div className="w-2 h-2 bg-[#E0C58F] rounded-full animate-bounce [animation-delay:0.4s]" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="p-8 bg-[#F5F0E9]/30 border-t border-[#D9CBC2]">
+                                            {chatPdf && (
+                                                <div className="mb-4 flex items-center justify-between p-4 bg-[#E0C58F]/20 border border-[#E0C58F] rounded-xl">
+                                                    <div className="flex items-center gap-3">
+                                                        <FileText className="text-[#112250]" />
+                                                        <span className="text-sm font-bold text-black">{chatPdf.name}</span>
+                                                    </div>
+                                                    <button onClick={() => setChatPdf(null)} className="text-rose-600 hover:scale-110 transition-transform"><X size={18} /></button>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-4">
+                                                <input type="file" className="hidden" ref={chatPdfInputRef} accept=".pdf" onChange={(e) => setChatPdf(e.target.files?.[0] || null)} />
+                                                <button onClick={() => chatPdfInputRef.current?.click()} className="p-4 bg-white border border-[#D9CBC2] rounded-2xl text-[#112250] hover:bg-white transition-all shadow-sm group">
+                                                    <Upload size={24} className="group-hover:scale-110 transition-transform" />
                                                 </button>
+                                                <div className="flex-1 relative">
+                                                    <input
+                                                        type="text"
+                                                        value={chatInput}
+                                                        onChange={(e) => setChatInput(e.target.value)}
+                                                        onKeyPress={(e) => e.key === 'Enter' && handleSendGeneralChat()}
+                                                        placeholder="Ask MedGemma anything..."
+                                                        className="w-full bg-white border-2 border-[#D9CBC2] rounded-2xl px-6 py-4 text-[#112250] outline-none focus:border-[#E0C58F] transition-all font-medium"
+                                                    />
+                                                    <button onClick={handleSendGeneralChat} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#3C507D] hover:scale-110 transition-transform">
+                                                        <Send size={24} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </motion.section>
-                    )}
+                            </motion.section>
+                        )
+                    }
                 </AnimatePresence>
             </main>
 
@@ -1263,7 +1306,6 @@ const DoctorDashboard = () => {
                 )}
             </AnimatePresence>
         </div>
-
     );
 };
 
@@ -1274,13 +1316,32 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
     const [savedRecords, setSavedRecords] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [categories, setCategories] = useState<string[]>(['General']);
+    const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
+    const fetchCategories = async () => {
+        if (!patient) return;
+        try {
+            const baseUrl = getApiBase();
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/categories/${patient.id}`, {
+                headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                setCategories(['General', ...data.categories.filter((c: string) => c !== 'General')]);
+            }
+        } catch (error) {
+            console.error('Failed to fetch categories:', error);
+        }
+    };
 
     const fetchRecords = async () => {
         if (!patient) return;
         setIsLoading(true);
         try {
             const baseUrl = getApiBase();
-            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/${CURRENT_USER_ID}?patientId=${patient.id || CURRENT_PATIENT_ID}`, {
+            // Fetch ALL records for this patient identity
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/patient/${patient.id}`, {
                 headers: {
                     'Authorization': 'Bearer clinical-access-token-2026',
                     'bypass-tunnel-reminder': 'true'
@@ -1304,6 +1365,7 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
 
     useEffect(() => {
         fetchRecords();
+        fetchCategories();
     }, [patient]);
 
     const getIcon = (type: string) => {
@@ -1359,8 +1421,30 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
                     <DossierNavButton active={activeTab === 'records'} onClick={() => setActiveTab('records')} icon={<FileSearch size={20} />} label="Past Records" />
                     <DossierNavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<HistoryIcon size={20} />} label="Medical History" />
                     < DossierNavButton active={activeTab === 'documents'} onClick={() => setActiveTab('documents')} icon={<FileText size={20} />} label="Documents" />
-                    <DossierNavButton active={activeTab === 'videos'} onClick={() => setActiveTab('videos')} icon={<Video size={20} />} label="Video Consults" />
-                    <DossierNavButton active={activeTab === 'cancer'} onClick={() => setActiveTab('cancer')} icon={<FolderArchive size={20} />} label="Cancer Talks" />
+                    <DossierNavButton active={activeTab === 'videos'} onClick={() => setActiveTab('records')} icon={<Video size={20} />} label="Video Consults" />
+                    <DossierNavButton active={activeTab === 'cancer'} onClick={() => setActiveTab('records')} icon={<FolderArchive size={20} />} label="Cancer Talks" />
+
+                    <div className="pt-6 mt-6 border-t border-[#D9CBC2]">
+                        <h3 className="text-[10px] font-black text-black opacity-30 uppercase tracking-[0.2em] mb-4 px-4">Condition Folders</h3>
+                        <div className="space-y-2">
+                            <button
+                                onClick={() => setSelectedCategory('All')}
+                                className={`w-full text-left px-5 py-3 rounded-xl text-xs font-bold transition-all ${selectedCategory === 'All' ? 'bg-[#112250] text-[#E0C58F] shadow-lg' : 'text-black/60 hover:bg-[#F5F0E9]'}`}
+                            >
+                                All Records
+                            </button>
+                            {categories.map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setSelectedCategory(cat)}
+                                    className={`w-full text-left px-5 py-3 rounded-xl text-xs font-bold transition-all truncate flex items-center gap-3 ${selectedCategory === cat ? 'bg-[#112250] text-[#E0C58F] shadow-lg' : 'text-black/60 hover:bg-[#F5F0E9]'}`}
+                                >
+                                    <Folder size={14} className={selectedCategory === cat ? 'text-[#E0C58F]' : 'text-black/40'} />
+                                    {cat}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Dossier Content */}
@@ -1394,6 +1478,10 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
                             </div>
                         ) : savedRecords
                             .filter((r: any) => {
+                                // First apply category filter
+                                if (selectedCategory !== 'All' && r.category !== selectedCategory) return false;
+
+                                // Then apply tab filter
                                 if (activeTab === 'records') return true;
                                 if (activeTab === 'history') return false; // History has its own section
                                 return r.recordType === activeTab.slice(0, -1);
@@ -1631,11 +1719,34 @@ const SymptomResult = ({ data, onSave }: { data: any, onSave: () => void }) => {
                         )) : <span className="text-sm font-medium text-black">{JSON.stringify(observations)}</span>}
                     </div>
                 </div>
-                <div className="p-6 bg-[#E0C58F] border-2 border-[#112250] rounded-2xl shadow-lg text-black">
-                    <p className="text-[10px] font-bold text-black opacity-60 uppercase tracking-widest mb-2 italic">Neural Prediction</p>
-                    <p className="text-lg font-black italic text-black leading-tight">
-                        {typeof diagnosis === 'string' ? diagnosis : JSON.stringify(diagnosis)}
-                    </p>
+                <div className="space-y-4">
+                    <p className="text-[10px] font-bold text-black opacity-60 uppercase tracking-widest italic">Neural Predictions</p>
+
+                    {data?.top_5_predictions && data.top_5_predictions.length > 0 ? (
+                        <div className="space-y-3">
+                            {data.top_5_predictions.map((p: any, idx: number) => (
+                                <div key={idx} className={`p-4 rounded-2xl border-2 transition-all ${idx === 0 ? 'bg-[#E0C58F] border-[#112250] shadow-lg' : 'bg-[#F5F0E9] border-[#D9CBC2] opacity-80'}`}>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <p className={`font-black italic leading-tight ${idx === 0 ? 'text-lg text-black' : 'text-sm text-[#112250]'}`}>
+                                            {p.disease}
+                                        </p>
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${idx === 0 ? 'bg-black text-[#E0C58F] border-black' : 'bg-white text-black border-[#D9CBC2]'}`}>
+                                            {(p.prob * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                    <p className={`text-[9px] font-bold uppercase tracking-tight ${idx === 0 ? 'text-black/60' : 'text-[#3C507D]'}`}>
+                                        Context: {p.bucket} {idx === 0 && '• Primary Hypothesis'}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-6 bg-[#E0C58F] border-2 border-[#112250] rounded-2xl shadow-lg text-black">
+                            <p className="text-lg font-black italic text-black leading-tight">
+                                {typeof diagnosis === 'string' ? diagnosis : JSON.stringify(diagnosis)}
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </motion.div>
@@ -2087,7 +2198,7 @@ const TemporalResult = ({ result, onReset, onSave }: { result: any, onReset: () 
 // Sub-components
 const SidebarIcon = ({ icon, active, onClick, label }: { icon: React.ReactNode, active: boolean, onClick: () => void, label: string }) => (
     <div className="relative group cursor-pointer" onClick={onClick}>
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-[#E0C58F] text-black shadow-lg border border-[#D9CBC2]' : 'bg-transparent text-[#3C507D] hover:text-[#E0C58F]'}`}>
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-[#E0C58F] text-black shadow-lg border border-[#D9CBC2]' : 'bg-transparent text-white/70 hover:text-[#E0C58F]'}`}>
             {icon}
         </div>
         <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#E0C58F] text-black text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-[100] shadow-xl border border-[#D9CBC2]">{label}</span>

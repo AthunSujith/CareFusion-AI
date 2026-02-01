@@ -10,11 +10,22 @@ from app.core.config import get_settings
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+import hashlib
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    # Pre-hash to handle passwords > 72 chars
+    # We use explicit encoding to ensure consistent bytes
+    password_bytes = plain_password.encode('utf-8')
+    # Use SHA-256 to create a 32-byte digest, then hex encoding (64 chars)
+    # This is safe for bcrypt (72 char limit)
+    safe_password = hashlib.sha256(password_bytes).hexdigest()
+    return pwd_context.verify(safe_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    # Pre-hash to handle passwords > 72 chars
+    password_bytes = password.encode('utf-8')
+    safe_password = hashlib.sha256(password_bytes).hexdigest()
+    return pwd_context.hash(safe_password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

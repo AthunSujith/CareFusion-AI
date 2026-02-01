@@ -10,6 +10,7 @@ interface FileUploadProps {
 const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) => {
     const [file, setFile] = useState<File | null>(null);
     const [folderType, setFolderType] = useState('documentation');
+    const [category, setCategory] = useState('General');
     const [uploading, setUploading] = useState(false);
     const [message, setMessage] = useState('');
 
@@ -28,11 +29,11 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
         setUploading(true);
         setMessage('');
 
-
         const formData = new FormData();
         formData.append('patientId', patientId);
         formData.append('folderType', folderType);
-        formData.append('file', file); // Append file last so req.body fields are available to Multer
+        formData.append('category', category);
+        formData.append('file', file);
 
         try {
             const baseUrl = getApiBase();
@@ -94,6 +95,16 @@ const FileUpload: React.FC<FileUploadProps> = ({ patientId, onUploadSuccess }) =
             <h3 className="text-xl font-semibold mb-4 text-white">Upload clinical Data</h3>
 
             <div className="space-y-4">
+                <div>
+                    <label className="block text-sm text-gray-400 mb-2">Medical Condition / Category (e.g. Lung Cancer)</label>
+                    <input
+                        type="text"
+                        className="w-full bg-black/40 border border-white/20 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        placeholder="General"
+                    />
+                </div>
                 <div>
                     <label className="block text-sm text-gray-400 mb-2">Target Folder</label>
                     <select
