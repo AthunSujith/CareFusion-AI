@@ -145,7 +145,7 @@ async def analyze_symptoms(
     
     return {"status": "accepted", "analysisId": analysis_id}
 
-@router.get("/module1/status/{analysis_id}")
+@router.get("/status/{analysis_id}")
 async def get_analysis_status(analysis_id: str):
     if analysis_id not in analysis_jobs:
         raise HTTPException(status_code=404, detail="Analysis ID not found")
@@ -173,13 +173,25 @@ async def scan_image(
         
         print(f"DEBUG: File saved to {file_path}. Running AI script...")
         args = [file_path, settings.MODULE2_CHECKPOINT, temp_dir]
-        output = await run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE2_SCRIPT_PATH, args)
-        data = extract_json(output)
-        print(f"DEBUG: AI Script finished. Result: {data.get('prediction', 'No prediction')}")
-        return data
+        analysis_id = str(uuid.uuid4())
+        analysis_jobs[analysis_id] = {"status": "processing", "result": None, "error": None}
+
+        async def run_in_bg(id, py, script, args):
+            try:
+                output = await run_script(py, script, args)
+                data = extract_json(output)
+                print(f"DEBUG: AI Script finished. Result: {data.get('prediction', 'No prediction')}")
+                analysis_jobs[id] = {"status": "completed", "result": data, "error": None}
+            except Exception as e:
+                print(f"Imaging analysis failed: {str(e)}")
+                analysis_jobs[id] = {"status": "failed", "result": None, "error": str(e)}
+
+        asyncio.create_task(run_in_bg(analysis_id, settings.AI_PYTHON_EXECUTABLE, settings.MODULE2_SCRIPT_PATH, args))
+        
+        return {"status": "accepted", "analysisId": analysis_id}
     except Exception as e:
-        print(f"ERROR in scan_image: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"ERROR in scan_image (file upload/setup): {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process image upload: {str(e)}")
 
 @router.post("/module3/dna")
 async def analyze_dna(
@@ -197,10 +209,21 @@ async def analyze_dna(
     args = ["--vcf", file_path]
     # Use specific executable for module 3 (conda env) if provided
     python_exe = settings.MODULE3_PYTHON_EXECUTABLE or settings.AI_PYTHON_EXECUTABLE
-    output = await run_script(python_exe, settings.MODULE3_SCRIPT_PATH, args)
-    data = extract_json(output, "---DNA_RESULT_START---", "---DNA_RESULT_END---")
+    analysis_id = str(uuid.uuid4())
+    analysis_jobs[analysis_id] = {"status": "processing", "result": None, "error": None}
+
+    async def run_in_bg(id, py, script, args):
+        try:
+            output = await run_script(py, script, args)
+            data = extract_json(output, "---DNA_RESULT_START---", "---DNA_RESULT_END---")
+            analysis_jobs[id] = {"status": "completed", "result": data, "error": None}
+        except Exception as e:
+            print(f"DNA analysis failed: {str(e)}")
+            analysis_jobs[id] = {"status": "failed", "result": None, "error": str(e)}
+
+    asyncio.create_task(run_in_bg(analysis_id, python_exe, settings.MODULE3_SCRIPT_PATH, args))
     
-    return data
+    return {"status": "accepted", "analysisId": analysis_id}
 
 @router.post("/module4/temporal")
 async def analyze_temporal(
@@ -210,14 +233,21 @@ async def analyze_temporal(
     print(f"DEBUG: Temporal Analysis started for user {userId}")
     args = [userId, observation]
     
-    try:
-        output = await run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE4_SCRIPT_PATH, args)
-        data = extract_json(output, "---TEMPORAL_OUTPUT_START---", "---TEMPORAL_OUTPUT_END---")
-        print(f"DEBUG: Temporal Analysis finished. Risk Level: {data.get('risk_analysis', {}).get('overall_risk_level', 'unknown')}")
-        return data
-    except Exception as e:
-        print(f"ERROR in analyze_temporal: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    analysis_id = str(uuid.uuid4())
+    analysis_jobs[analysis_id] = {"status": "processing", "result": None, "error": None}
+
+    async def run_in_bg(id, py, script, args):
+        try:
+            output = await run_script(py, script, args)
+            data = extract_json(output, "---TEMPORAL_OUTPUT_START---", "---TEMPORAL_OUTPUT_END---")
+            analysis_jobs[id] = {"status": "completed", "result": data, "error": None}
+        except Exception as e:
+            print(f"Temporal analysis failed: {str(e)}")
+            analysis_jobs[id] = {"status": "failed", "result": None, "error": str(e)}
+
+    asyncio.create_task(run_in_bg(analysis_id, settings.AI_PYTHON_EXECUTABLE, settings.MODULE4_SCRIPT_PATH, args))
+    
+    return {"status": "accepted", "analysisId": analysis_id}
 
 @router.post("/chat/general")
 async def general_chat(
@@ -233,9 +263,21 @@ async def general_chat(
             await out_file.write(await pdf_doc.read())
         args.extend(["--pdf", temp_path])
         
-    output = await run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE_CHAT_SCRIPT_PATH, args)
-    data = extract_json(output)
-    return {"status": "success", "result": data}
+    analysis_id = str(uuid.uuid4())
+    analysis_jobs[analysis_id] = {"status": "processing", "result": None, "error": None}
+
+    async def run_in_bg(id, py, script, args):
+        try:
+            output = await run_script(py, script, args)
+            data = extract_json(output)
+            analysis_jobs[id] = {"status": "completed", "result": data, "error": None}
+        except Exception as e:
+            print(f"Chat analysis failed: {str(e)}")
+            analysis_jobs[id] = {"status": "failed", "result": None, "error": str(e)}
+
+    asyncio.create_task(run_in_bg(analysis_id, settings.AI_PYTHON_EXECUTABLE, settings.MODULE_CHAT_SCRIPT_PATH, args))
+    
+    return {"status": "accepted", "analysisId": analysis_id}
 
 # --- Record Management ---
 

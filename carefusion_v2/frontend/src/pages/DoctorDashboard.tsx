@@ -166,7 +166,7 @@ const DoctorDashboard = () => {
 
                 while (!completed) {
                     await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
-                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/module1/status/${analysisId}`;
+                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/status/${analysisId}`;
                     console.log(`⏱️ Polling analysis status for ${analysisId}...`);
 
                     const statusRes = await fetch(statusUrl, {
@@ -275,7 +275,7 @@ const DoctorDashboard = () => {
 
                 while (!completed) {
                     await new Promise(r => setTimeout(r, 5000));
-                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/module1/status/${analysisId}`;
+                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/status/${analysisId}`;
                     console.log(`⏱️ Polling audio status for ${analysisId}...`);
 
                     const statusRes = await fetch(statusUrl, {
@@ -361,7 +361,33 @@ const DoctorDashboard = () => {
             }
 
             const data = await response.json();
-            setAnalysisResult(data);
+
+            if (data.status === 'accepted' && data.analysisId) {
+                let completed = false;
+                const analysisId = data.analysisId;
+                console.log(`🖼️ Imaging job accepted: ${analysisId}`);
+
+                while (!completed) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/status/${analysisId}`;
+                    const statusRes = await fetch(statusUrl, {
+                        headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
+                    });
+
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'completed') {
+                            completed = true;
+                            setAnalysisResult(statusData.result);
+                        } else if (statusData.status === 'failed') {
+                            completed = true;
+                            throw new Error(statusData.error || "Imaging analysis failed.");
+                        }
+                    }
+                }
+            } else {
+                setAnalysisResult(data);
+            }
         } catch (error: any) {
             console.error("Radiology Upload Error:", error);
             const isNetworkError = error.name === 'TypeError' || error.message.includes('fetch');
@@ -407,7 +433,33 @@ const DoctorDashboard = () => {
             }
 
             const data = await response.json();
-            setDnaResult(data);
+
+            if (data.status === 'accepted' && data.analysisId) {
+                let completed = false;
+                const analysisId = data.analysisId;
+                console.log(`🧬 DNA job accepted: ${analysisId}`);
+
+                while (!completed) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/status/${analysisId}`;
+                    const statusRes = await fetch(statusUrl, {
+                        headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
+                    });
+
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'completed') {
+                            completed = true;
+                            setDnaResult(statusData.result);
+                        } else if (statusData.status === 'failed') {
+                            completed = true;
+                            throw new Error(statusData.error || "DNA analysis failed.");
+                        }
+                    }
+                }
+            } else {
+                setDnaResult(data);
+            }
         } catch (error: any) {
             console.error("DNA Analysis failed", error);
             alert(`❌ Genomic Sequencing Error: ${error.message || 'Data node handshake failed.'}`);
@@ -540,12 +592,46 @@ const DoctorDashboard = () => {
             }
 
             const data = await response.json();
-            const botMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                type: 'bot',
-                text: data.result?.ai_response || data.result?.result?.ai_response || "AI reasoning complete. Deep clinical patterns identified."
-            };
-            setChatMessages(prev => [...prev, botMsg]);
+
+            if (data.status === 'accepted' && data.analysisId) {
+                let completed = false;
+                const analysisId = data.analysisId;
+                console.log(`🤖 AI Chat job accepted: ${analysisId}`);
+
+                while (!completed) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/status/${analysisId}`;
+                    console.log(`⏱️ Polling chat status for ${analysisId}...`);
+
+                    const statusRes = await fetch(statusUrl, {
+                        headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
+                    });
+
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        console.log(`📊 Chat Status: ${statusData.status}`);
+                        if (statusData.status === 'completed') {
+                            completed = true;
+                            const botMsg: Message = {
+                                id: (Date.now() + 1).toString(),
+                                type: 'bot',
+                                text: statusData.result?.ai_response || statusData.result?.result?.ai_response || "AI reasoning complete. Deep clinical patterns identified."
+                            };
+                            setChatMessages(prev => [...prev, botMsg]);
+                        } else if (statusData.status === 'failed') {
+                            completed = true;
+                            throw new Error(statusData.error || "MedGemma reasoning failed.");
+                        }
+                    }
+                }
+            } else {
+                const botMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    type: 'bot',
+                    text: data.result?.ai_response || data.result?.result?.ai_response || "AI reasoning complete. Deep clinical patterns identified."
+                };
+                setChatMessages(prev => [...prev, botMsg]);
+            }
             setChatPdf(null);
         } catch (error: any) {
             console.error("General AI Chat failed", error);
@@ -579,7 +665,33 @@ const DoctorDashboard = () => {
             }
 
             const data = await response.json();
-            setTemporalResult(data);
+
+            if (data.status === 'accepted' && data.analysisId) {
+                let completed = false;
+                const analysisId = data.analysisId;
+                console.log(`⏳ Temporal job accepted: ${analysisId}`);
+
+                while (!completed) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/status/${analysisId}`;
+                    const statusRes = await fetch(statusUrl, {
+                        headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
+                    });
+
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'completed') {
+                            completed = true;
+                            setTemporalResult(statusData.result);
+                        } else if (statusData.status === 'failed') {
+                            completed = true;
+                            throw new Error(statusData.error || "Temporal analysis failed.");
+                        }
+                    }
+                }
+            } else {
+                setTemporalResult(data);
+            }
         } catch (error: any) {
             console.error("Temporal Analysis failed", error);
             alert(`❌ Temporal Node Error: ${error.message || 'Failed to sync clinical history.'}`);

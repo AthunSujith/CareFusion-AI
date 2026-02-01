@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -16,7 +16,13 @@ import {
     FileText,
     User,
     Lock as LockIcon,
-    History as HistoryIcon
+    History as HistoryIcon,
+    MessagesSquare,
+    Bot,
+    Send,
+    Upload,
+    X as XIcon,
+    FileSearch
 } from 'lucide-react';
 
 
@@ -29,7 +35,7 @@ import { getApiBase, API_ENDPOINTS, setApiBase } from '../utils/apiConfig';
 const PatientDashboard = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [accessCode, setAccessCode] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'reports' | 'settings' | 'aichat'>('overview');
     const [records, setRecords] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -38,6 +44,26 @@ const PatientDashboard = () => {
     const PATIENT_ID = 'PAT-001-X'; // Unified patient ID for this demo
     const [showBridgeSettings, setShowBridgeSettings] = useState(false);
     const [newTunnelUrl, setNewTunnelUrl] = useState('');
+
+    // AI Chat State
+    const [chatMessages, setChatMessages] = useState<any[]>([
+        { id: '1', type: 'bot', text: "Hello. I am MedGemma 1.5, your specialized clinical AI. You can chat with me or upload medical documents for deep analysis." }
+    ]);
+    const [chatInput, setChatInput] = useState('');
+    const [isChatThinking, setIsChatThinking] = useState(false);
+    const [chatPdf, setChatPdf] = useState<File | null>(null);
+    const chatPdfInputRef = useRef<HTMLInputElement>(null);
+    const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        if (activeTab === 'aichat') {
+            scrollToBottom();
+        }
+    }, [chatMessages, activeTab]);
 
 
     // Logic for 2-minute code expiry and 1-hour session termination
@@ -114,6 +140,74 @@ const PatientDashboard = () => {
         }
     };
 
+    const handleSendGeneralChat = async () => {
+        if (!chatInput.trim() && !chatPdf) return;
+
+        const userMsg = { id: Date.now().toString(), type: 'user', text: chatInput || (chatPdf ? `📄 [Analyzing Document: ${chatPdf.name}]` : "") };
+        setChatMessages(prev => [...prev, userMsg]);
+        setChatInput('');
+        setIsChatThinking(true);
+
+        const formData = new FormData();
+        formData.append('prompt', chatInput || "Analyze this medical document.");
+        if (chatPdf) formData.append('pdf_doc', chatPdf);
+
+        try {
+            const baseUrl = getApiBase();
+            const url = `${baseUrl}${API_ENDPOINTS.AI}/chat/general`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                },
+                body: formData
+            });
+
+            if (!response.ok) throw new Error(`Server error ${response.status}`);
+
+            const data = await response.json();
+
+            if (data.status === 'accepted' && data.analysisId) {
+                let completed = false;
+                const analysisId = data.analysisId;
+                while (!completed) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    const statusUrl = `${baseUrl}${API_ENDPOINTS.AI}/status/${analysisId}`;
+                    const statusRes = await fetch(statusUrl, {
+                        headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
+                    });
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'completed') {
+                            completed = true;
+                            setChatMessages(prev => [...prev, {
+                                id: Date.now().toString(),
+                                type: 'bot',
+                                text: statusData.result?.ai_response || "Analysis complete."
+                            }]);
+                        } else if (statusData.status === 'failed') {
+                            completed = true;
+                            throw new Error(statusData.error || "AI analysis failed.");
+                        }
+                    }
+                }
+            } else {
+                setChatMessages(prev => [...prev, {
+                    id: Date.now().toString(),
+                    type: 'bot',
+                    text: data.result?.ai_response || "Analysis complete."
+                }]);
+            }
+        } catch (error: any) {
+            console.error("Chat Error:", error);
+            alert(`❌ AI Chat Error: ${error.message}`);
+        } finally {
+            setIsChatThinking(false);
+            setChatPdf(null);
+        }
+    };
+
 
     return (
         <div className="flex h-screen bg-[#F5F0E9] text-black font-main antialiased overflow-hidden">
@@ -133,6 +227,7 @@ const PatientDashboard = () => {
                     <NavIcon icon={<Activity />} active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} label="Home" />
                     <NavIcon icon={<HistoryIcon />} active={activeTab === 'history'} onClick={() => setActiveTab('history')} label="History" />
                     <NavIcon icon={<FileText />} active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} label="Reports" />
+                    <NavIcon icon={<MessagesSquare />} active={activeTab === 'aichat'} onClick={() => setActiveTab('aichat')} label="AI Chat" />
                     <NavIcon icon={<Settings />} active={activeTab === 'settings'} onClick={() => setShowBridgeSettings(true)} label="Settings" />
                 </nav>
 
@@ -397,6 +492,77 @@ const PatientDashboard = () => {
                                                 )}
                                             </div>
                                         </section>
+                                    </div>
+                                ) : activeTab === 'aichat' ? (
+                                    <div className="xl:col-span-12 space-y-10">
+                                        <div className="bg-white border-2 border-[#D9CBC2] rounded-[3rem] p-8 min-h-[500px] flex flex-col shadow-xl">
+                                            <header className="flex items-center gap-4 border-b border-[#D9CBC2] pb-6 mb-6">
+                                                <div className="w-12 h-12 rounded-xl bg-[#112250] flex items-center justify-center text-[#E0C58F]">
+                                                    <Bot size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-black text-black">MedGemma Intelligence</h3>
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3C507D]">Clinical Reasoning Engine Active</p>
+                                                </div>
+                                            </header>
+
+                                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 max-h-[400px] mb-6 pr-2">
+                                                {chatMessages.map((m) => (
+                                                    <div key={m.id} className={`flex ${m.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[80%] p-5 rounded-2xl font-medium text-sm shadow-sm ${m.type === 'user'
+                                                            ? 'bg-[#112250] text-[#E0C58F] rounded-br-none'
+                                                            : 'bg-[#F5F0E9] text-black border border-[#D9CBC2] rounded-bl-none'
+                                                            }`}>
+                                                            {m.text}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {isChatThinking && (
+                                                    <div className="flex justify-start">
+                                                        <div className="bg-[#F5F0E9] border border-[#D9CBC2] p-4 rounded-2xl flex gap-1">
+                                                            <div className="w-1.5 h-1.5 bg-[#112250] rounded-full animate-bounce" />
+                                                            <div className="w-1.5 h-1.5 bg-[#112250] rounded-full animate-bounce [animation-delay:0.2s]" />
+                                                            <div className="w-1.5 h-1.5 bg-[#112250] rounded-full animate-bounce [animation-delay:0.4s]" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div ref={chatMessagesEndRef} />
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                {chatPdf && (
+                                                    <div className="flex items-center justify-between p-3 bg-[#E0C58F]/10 border border-[#E0C58F] rounded-xl text-xs font-bold text-black">
+                                                        <div className="flex items-center gap-2">
+                                                            <FileSearch size={14} />
+                                                            <span>{chatPdf.name}</span>
+                                                        </div>
+                                                        <button onClick={() => setChatPdf(null)} className="text-black/40 hover:text-black"><XIcon size={14} /></button>
+                                                    </div>
+                                                )}
+                                                <div className="flex gap-4">
+                                                    <div className="flex-1 relative">
+                                                        <input
+                                                            type="text"
+                                                            value={chatInput}
+                                                            onChange={(e) => setChatInput(e.target.value)}
+                                                            onKeyPress={(e) => e.key === 'Enter' && handleSendGeneralChat()}
+                                                            placeholder="Ask a medical question or upload a report..."
+                                                            className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl px-6 py-4 outline-none focus:border-[#112250] transition-all font-medium pr-12"
+                                                        />
+                                                        <button onClick={handleSendGeneralChat} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#112250]">
+                                                            <Send size={20} />
+                                                        </button>
+                                                    </div>
+                                                    <input type="file" ref={chatPdfInputRef} className="hidden" onChange={(e) => setChatPdf(e.target.files?.[0] || null)} accept=".pdf" />
+                                                    <button
+                                                        onClick={() => chatPdfInputRef.current?.click()}
+                                                        className="p-4 bg-[#F5F0E9] border-2 border-[#D9CBC2] text-[#112250] rounded-2xl hover:bg-white transition-all shadow-sm"
+                                                    >
+                                                        <Upload size={24} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="xl:col-span-12 h-96 bg-white border-2 border-[#D9CBC2] rounded-[3rem] flex flex-col items-center justify-center gap-6">
