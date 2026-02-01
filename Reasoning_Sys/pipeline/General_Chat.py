@@ -22,16 +22,20 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
-def run_rag_chat(prompt, pdf_path=None, image_path=None):
-    temp_dir = f"temp_rag_{uuid.uuid4().hex}"
+def run_rag_chat(prompt, pdf_path=None, image_path=None, user_id=None):
+    # User-specific persistent vector store
+    if user_id:
+        vectorstore_dir = os.path.join("C:/CareFusion-AI/data/users", user_id, "vectorstore")
+        os.makedirs(vectorstore_dir, exist_ok=True)
+    else:
+        vectorstore_dir = f"temp_rag_{uuid.uuid4().hex}"
+    
     vectorstore = None
     
     try:
         if image_path and os.path.exists(image_path):
             # 1. Multi-modal Vision Path
             llm = ChatOllama(model=VISION_LLM, base_url=OLLAMA_BASE_URL, temperature=0.1, timeout=300)
-            # For Ollama Vision models, we often need to pass the image in the prompt or as a message
-            # LangChain Ollama supports this via 'images' in the invoke call
             from langchain_core.messages import HumanMessage
             
             img_base64 = encode_image(image_path)
@@ -42,7 +46,7 @@ def run_rag_chat(prompt, pdf_path=None, image_path=None):
             ai_response = llm.invoke([message]).content
 
         elif pdf_path and os.path.exists(pdf_path):
-            # 2. PDF RAG Path
+            # 2. PDF RAG Path - Persistent Vector Store
             loader = PyPDFLoader(pdf_path)
             docs = loader.load()
             
@@ -50,11 +54,22 @@ def run_rag_chat(prompt, pdf_path=None, image_path=None):
             splits = text_splitter.split_documents(docs)
             
             embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
-            vectorstore = Chroma.from_documents(
-                documents=splits, 
-                embedding=embeddings,
-                persist_directory=temp_dir
-            )
+            
+            # Check if user already has a vector store
+            if os.path.exists(vectorstore_dir) and os.listdir(vectorstore_dir):
+                # Load existing and add new documents
+                vectorstore = Chroma(
+                    persist_directory=vectorstore_dir,
+                    embedding_function=embeddings
+                )
+                vectorstore.add_documents(splits)
+            else:
+                # Create new vector store
+                vectorstore = Chroma.from_documents(
+                    documents=splits, 
+                    embedding=embeddings,
+                    persist_directory=vectorstore_dir
+                )
             
             llm = ChatOllama(
                 model=DEFAULT_LLM, 
@@ -88,44 +103,80 @@ def run_rag_chat(prompt, pdf_path=None, image_path=None):
             ai_response = response["result"]
             
         else:
-            # 3. Standard Chat Path
-            llm = ChatOllama(model=DEFAULT_LLM, base_url=OLLAMA_BASE_URL, temperature=0.3, timeout=300)
-            ai_response = llm.invoke(prompt).content
+            # 3. Standard Chat Path - Query existing vector store if available
+            if user_id and os.path.exists(vectorstore_dir) and os.listdir(vectorstore_dir):
+                embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
+                vectorstore = Chroma(
+                    persist_directory=vectorstore_dir,
+                    embedding_function=embeddings
+                )
+                
+                llm = ChatOllama(
+                    model=DEFAULT_LLM, 
+                    base_url=OLLAMA_BASE_URL,
+                    temperature=0.3,
+                    num_ctx=8192,
+                    timeout=300
+                )
+                
+                template = """You are CareFusion AI. Use the user's previously uploaded medical documents to answer questions.
+                
+                CONTEXT:
+                {context}
+                
+                USER QUESTION: {question}
+                
+                ANSWER:"""
+                
+                QA_CHAIN_PROMPT = PromptTemplate.from_template(template)
+                
+                qa_chain = RetrievalQA.from_chain_type(
+                    llm,
+                    retriever=vectorstore.as_retriever(search_kwargs={"k": 5}),
+                    chain_type_kwargs={"prompt": QA_CHAIN_PROMPT}
+                )
+                
+                response = qa_chain.invoke({"query": prompt})
+                ai_response = response["result"]
+            else:
+                # No documents uploaded yet
+                llm = ChatOllama(model=DEFAULT_LLM, base_url=OLLAMA_BASE_URL, temperature=0.3, timeout=300)
+                ai_response = llm.invoke(prompt).content
 
     except Exception as e:
         ai_response = f"AI Inference Error (Local Node): {str(e)}"
         if "llava" in str(e).lower():
             ai_response += "\n\nTip: To analyze images, please run 'ollama pull llava' on the clinical node."
     finally:
-        # Cleanup - Windows-safe approach
+        # Cleanup - Keep vector store, only remove temp files
         import time
         import gc
         
-        if vectorstore:
+        if vectorstore and not user_id:
+            # Only delete if it's a temporary store (no user_id)
             try:
-                # Explicitly delete collection and close client
                 vectorstore.delete_collection()
                 if hasattr(vectorstore, '_client'):
                     del vectorstore._client
                 del vectorstore
-                gc.collect()  # Force garbage collection
-                time.sleep(0.5)  # Give Windows time to release file handles
+                gc.collect()
+                time.sleep(0.5)
             except Exception as cleanup_error:
                 print(f"Warning: Vector store cleanup issue: {cleanup_error}")
-        
-        # Remove temp directory with retry for Windows
-        if os.path.exists(temp_dir):
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    shutil.rmtree(temp_dir)
-                    break
-                except PermissionError:
-                    if attempt < max_retries - 1:
-                        time.sleep(1)  # Wait for file handles to close
-                        gc.collect()
-                    else:
-                        print(f"Warning: Could not delete temp directory {temp_dir}. It will be cleaned on next run.")
+            
+            # Remove temp directory
+            if os.path.exists(vectorstore_dir):
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        shutil.rmtree(vectorstore_dir)
+                        break
+                    except PermissionError:
+                        if attempt < max_retries - 1:
+                            time.sleep(1)
+                            gc.collect()
+                        else:
+                            print(f"Warning: Could not delete temp directory {vectorstore_dir}.")
         
         # Cleanup temp files passed by backend
         if pdf_path and "/temp_chat/" in pdf_path and os.path.exists(pdf_path):
@@ -153,6 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("prompt", help="User text input")
     parser.add_argument("--pdf", help="Path to PDF document", default=None)
     parser.add_argument("--image", help="Path to clinical image", default=None)
+    parser.add_argument("--user", help="User ID for persistent vector store", default=None)
     
     args = parser.parse_args()
     
@@ -160,4 +212,4 @@ if __name__ == "__main__":
         import io
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
         
-    run_rag_chat(args.prompt, args.pdf, args.image)
+    run_rag_chat(args.prompt, args.pdf, args.image, args.user)

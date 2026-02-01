@@ -150,6 +150,7 @@ const PatientDashboard = () => {
 
         const formData = new FormData();
         formData.append('prompt', chatInput || "Analyze this medical document.");
+        formData.append('userId', PATIENT_ID);
         if (chatPdf) formData.append('pdf_doc', chatPdf);
 
         try {

@@ -252,13 +252,14 @@ async def analyze_temporal(
 @router.post("/chat/general")
 async def general_chat(
     prompt: str = Form(...),
+    userId: str = Form(...),
     pdf_doc: Optional[UploadFile] = File(None),
     image_doc: Optional[UploadFile] = File(None)
 ):
-    args = [prompt]
+    args = [prompt, "--user", userId]
     if pdf_doc:
         # Save PDF temporarily
-        temp_path = os.path.join(settings.USER_DATA_ROOT, "temp_chat", f"{uuid.uuid4()}_{pdf_doc.filename}")
+        temp_path = os.path.join(settings.USER_DATA_ROOT, userId, "temp_chat", f"{uuid.uuid4()}_{pdf_doc.filename}")
         os.makedirs(os.path.dirname(temp_path), exist_ok=True)
         async with aiofiles.open(temp_path, 'wb') as out_file:
             await out_file.write(await pdf_doc.read())
@@ -266,7 +267,7 @@ async def general_chat(
     
     if image_doc:
         # Save Image temporarily
-        temp_path = os.path.join(settings.USER_DATA_ROOT, "temp_chat", f"{uuid.uuid4()}_{image_doc.filename}")
+        temp_path = os.path.join(settings.USER_DATA_ROOT, userId, "temp_chat", f"{uuid.uuid4()}_{image_doc.filename}")
         os.makedirs(os.path.dirname(temp_path), exist_ok=True)
         async with aiofiles.open(temp_path, 'wb') as out_file:
             await out_file.write(await image_doc.read())
