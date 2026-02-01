@@ -1495,17 +1495,45 @@ const DnaResult = ({ file, result, loading, onAnalyze, onSave }: { file: File, r
 
                         <div className="space-y-4">
                             <h4 className="text-xs font-black text-black uppercase tracking-widest">Detected Pathogenic Variants</h4>
-                            <div className="p-6 bg-white border border-[#D9CBC2] rounded-xl text-black font-medium text-sm">
+                            <div className="space-y-4">
                                 {result?.genetic_findings && result.genetic_findings.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {result.genetic_findings.map((v: string, i: number) => (
-                                            <div key={i} className="flex items-center gap-3 text-black">
-                                                <ShieldAlert size={14} className="text-rose-600" />
-                                                <span className="text-black">{v}</span>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {result.genetic_findings.map((v: any, i: number) => (
+                                            <div key={i} className="p-6 bg-white border-2 border-[#D9CBC2]/30 rounded-2xl hover:border-rose-300 transition-all shadow-sm">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+                                                            <ShieldAlert size={20} className="text-rose-600" />
+                                                        </div>
+                                                        <div>
+                                                            <h5 className="text-base font-black text-black">{v.gene || 'Unknown Gene'}</h5>
+                                                            <p className="text-[10px] font-bold text-black opacity-40 uppercase tracking-widest">{v.rsid || 'No RSID'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="px-3 py-1 bg-rose-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg">Pathogenic</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                                                    <div>
+                                                        <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Variant</p>
+                                                        <p className="text-xs font-bold text-black truncate" title={v.variant}>{v.variant}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Disease</p>
+                                                        <p className="text-xs font-bold text-black">{v.disease || 'N/A'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Frequency</p>
+                                                        <p className="text-xs font-bold text-black">{v.frequency || 'Rare'}</p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
-                                ) : "No pathogenic variants detected."}
+                                ) : (
+                                    <div className="p-6 bg-white border border-[#D9CBC2] rounded-xl text-black font-medium text-sm text-center">
+                                        No pathogenic variants detected in this manifest.
+                                    </div>
+                                )}
                             </div>
                         </div>
 
