@@ -23,23 +23,15 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
-    # Handle OPTIONS pre-flight explicitly for tunnels
+    # Only process non-OPTIONS requests to avoid overlapping with CORSMiddleware
     if request.method == "OPTIONS":
-        return JSONResponse(
-            content="OK",
-            status_code=200,
-            headers={
-                "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
-                "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "Authorization, Content-Type, bypass-tunnel-reminder, *",
-                "Access-Control-Allow-Credentials": "true",
-            }
-        )
-    
+        return await call_next(request)
+        
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
+    # Logging instead of just printing
     print(f"DEBUG: {request.method} {request.url.path} - {response.status_code} ({process_time:.4f}s)")
     return response
 
