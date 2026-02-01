@@ -1494,44 +1494,58 @@ const DnaResult = ({ file, result, loading, onAnalyze, onSave }: { file: File, r
                         </div>
 
                         <div className="space-y-4">
-                            <h4 className="text-xs font-black text-black uppercase tracking-widest">Detected Pathogenic Variants</h4>
+                            <h4 className="text-xs font-black text-black uppercase tracking-widest">Detected Variants</h4>
                             <div className="space-y-4">
-                                {result?.genetic_findings && result.genetic_findings.length > 0 ? (
+                                {result?.error ? (
+                                    <div className="p-6 bg-rose-50 border-2 border-rose-200 rounded-2xl text-rose-700 font-bold text-sm">
+                                        <p className="flex items-center gap-2 mb-1"><ShieldAlert size={16} /> Analysis Error</p>
+                                        <p className="opacity-80">{result.message || result.error}</p>
+                                    </div>
+                                ) : result?.genetic_findings && result.genetic_findings.length > 0 ? (
                                     <div className="grid grid-cols-1 gap-4">
-                                        {result.genetic_findings.map((v: any, i: number) => (
-                                            <div key={i} className="p-6 bg-white border-2 border-[#D9CBC2]/30 rounded-2xl hover:border-rose-300 transition-all shadow-sm">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
-                                                            <ShieldAlert size={20} className="text-rose-600" />
+                                        {result.genetic_findings.map((v: any, i: number) => {
+                                            const isPathogenic = v.status === 'Pathogenic';
+                                            return (
+                                                <div key={i} className={`p-6 bg-white border-2 rounded-2xl transition-all shadow-sm ${isPathogenic ? 'border-rose-200 hover:border-rose-400' : 'border-[#D9CBC2]/30 hover:border-[#112250]/30'}`}>
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isPathogenic ? 'bg-rose-50' : 'bg-cyan-50'}`}>
+                                                                {isPathogenic ? <ShieldAlert size={20} className="text-rose-600" /> : <Database size={20} className="text-cyan-600" />}
+                                                            </div>
+                                                            <div>
+                                                                <h5 className="text-base font-black text-black">{v.gene || 'Genetic Locus'}</h5>
+                                                                <p className="text-[10px] font-bold text-black opacity-40 uppercase tracking-widest">{v.rsid || 'NO_RSID'}</p>
+                                                            </div>
+                                                        </div>
+                                                        <span className={`px-3 py-1 text-white text-[9px] font-black uppercase tracking-widest rounded-lg ${isPathogenic ? 'bg-rose-600' : 'bg-cyan-600'}`}>
+                                                            {v.status || 'Variant'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                                                        <div>
+                                                            <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Variant Identity</p>
+                                                            <p className="text-xs font-bold text-black truncate" title={v.variant}>{v.variant}</p>
                                                         </div>
                                                         <div>
-                                                            <h5 className="text-base font-black text-black">{v.gene || 'Unknown Gene'}</h5>
-                                                            <p className="text-[10px] font-bold text-black opacity-40 uppercase tracking-widest">{v.rsid || 'No RSID'}</p>
+                                                            <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Associated Condition</p>
+                                                            <p className="text-xs font-bold text-black">{v.disease || 'Undetermined'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Allele Frequency</p>
+                                                            <p className="text-xs font-bold text-black">
+                                                                {typeof v.frequency === 'number'
+                                                                    ? `${(v.frequency * 100).toFixed(4)}%`
+                                                                    : (v.frequency || 'N/A')}
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                    <span className="px-3 py-1 bg-rose-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg">Pathogenic</span>
                                                 </div>
-                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                                    <div>
-                                                        <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Variant</p>
-                                                        <p className="text-xs font-bold text-black truncate" title={v.variant}>{v.variant}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Disease</p>
-                                                        <p className="text-xs font-bold text-black">{v.disease || 'N/A'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[9px] font-bold text-black opacity-40 uppercase tracking-widest mb-1">Frequency</p>
-                                                        <p className="text-xs font-bold text-black">{v.frequency || 'Rare'}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="p-6 bg-white border border-[#D9CBC2] rounded-xl text-black font-medium text-sm text-center">
-                                        No pathogenic variants detected in this manifest.
+                                        No clinically significant variants detected in this manifest.
                                     </div>
                                 )}
                             </div>
