@@ -65,9 +65,11 @@ const Landing = () => {
                                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform text-[#E0C58F]" />
                                         </button>
                                     </Link>
-                                    <button className="btn-premium bg-white border-2 border-[#D9CBC2] text-black w-full sm:w-auto px-12 py-5 text-lg">
-                                        Learn More
-                                    </button>
+                                    <Link to="/signup" className="w-full sm:w-auto">
+                                        <button className="btn-premium bg-white border-2 border-[#D9CBC2] text-black w-full sm:w-auto px-12 py-5 text-lg shadow-md hover:bg-slate-50">
+                                            Create Account
+                                        </button>
+                                    </Link>
                                 </motion.div>
 
                                 <motion.div
