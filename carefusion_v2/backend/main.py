@@ -59,6 +59,8 @@ async def root():
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(patients.router, prefix="/api/v2", tags=["Patients"])
 app.include_router(ai.router, prefix="/api/v2/ai", tags=["AI"])
+from app.routers import admin
+app.include_router(admin.router, prefix="/api/v2/admin", tags=["Admin Verification"])
 
 if __name__ == "__main__":
     import uvicorn
