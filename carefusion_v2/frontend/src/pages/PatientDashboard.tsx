@@ -298,7 +298,7 @@ const PatientDashboard = () => {
 
             {/* Main Content Area */}
             <main className={`flex-1 overflow-y-auto custom-scrollbar relative ${isStandalone() ? 'pt-0 pb-24' : ''}`}>
-                <MobileAppHeader title="CareFusion Patient" />
+                <MobileAppHeader title="CareFusion Patient" onSettingsClick={() => setShowBridgeSettings(true)} />
 
                 {/* Global Luxury Background Image */}
                 <div className="fixed inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply z-0">
@@ -689,7 +689,7 @@ const PatientDashboard = () => {
                 </div>
             </main>
 
-            {/* Clinical Bridge Modal */}
+            {/* Bridge Configuration Modal */}
             <AnimatePresence>
                 {showBridgeSettings && (
                     <motion.div
@@ -706,25 +706,25 @@ const PatientDashboard = () => {
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <RefreshCw className="text-[#112250]" />
-                                    <h3 className="text-2xl font-black text-black">Bridge Configuration</h3>
+                                    <RefreshCw className="text-[#112250] animate-spin-slow" />
+                                    <h3 className="text-2xl font-black text-black">Bridge Settings</h3>
                                 </div>
-                                <button onClick={() => setShowBridgeSettings(false)} className="p-2 hover:bg-[#F5F0E9] rounded-xl transition-all">
-                                    <LogOut className="rotate-180" />
+                                <button onClick={() => setShowBridgeSettings(false)} className="p-2 hover:bg-[#F5F0E9] rounded-xl transition-all text-black">
+                                    <XIcon size={24} />
                                 </button>
                             </div>
 
                             <p className="text-sm font-medium text-black/60 leading-relaxed">
-                                Enter your public clinical node URL (handshake bridge) to synchronize records across encrypted sectors.
+                                Configure the neural handshake pathway between this interface and your Clinical Storage Node.
                             </p>
 
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40">Active Node Path</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40">Clinical Node URL</label>
                                     <input
                                         type="text"
                                         placeholder="https://clinical-node.loca.lt"
-                                        className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl p-4 text-sm font-bold outline-none focus:border-[#112250] transition-all"
+                                        className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl p-4 text-sm font-bold outline-none focus:border-[#112250] transition-all text-black"
                                         value={newTunnelUrl || getApiBase()}
                                         onChange={(e) => setNewTunnelUrl(e.target.value)}
                                     />
