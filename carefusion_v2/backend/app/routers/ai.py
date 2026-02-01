@@ -11,9 +11,13 @@ from typing import Optional, List, Any
 from app.core.config import get_settings
 from app.core.database import get_db
 from bson import ObjectId
+import uuid
 
 router = APIRouter()
 settings = get_settings()
+
+# Analysis Job Store (In-memory for now, could be Redis/Mongo)
+analysis_jobs = {}
 
 # Models
 class AIRequest(BaseModel):
@@ -124,10 +128,29 @@ async def analyze_symptoms(
     args = [input_data]
     if is_text: args.append("--text")
     
-    output = await run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE1_SCRIPT_PATH, args)
-    data = extract_json(output)
+    analysis_id = str(uuid.uuid4())
+    analysis_jobs[analysis_id] = {"status": "processing", "result": None, "error": None}
+
+    # Run in background to avoid tunnel timeouts
+    async def run_in_bg(id, py, script, args):
+        try:
+            output = await run_script(py, script, args)
+            data = extract_json(output)
+            analysis_jobs[id] = {"status": "completed", "result": data, "error": None}
+        except Exception as e:
+            print(f"Background analysis failed: {str(e)}")
+            analysis_jobs[id] = {"status": "failed", "result": None, "error": str(e)}
+
+    asyncio.create_task(run_in_bg(analysis_id, settings.AI_PYTHON_EXECUTABLE, settings.MODULE1_SCRIPT_PATH, args))
     
-    return {"status": "success", "result": data}
+    return {"status": "accepted", "analysisId": analysis_id}
+
+@router.get("/module1/status/{analysis_id}")
+async def get_analysis_status(analysis_id: str):
+    if analysis_id not in analysis_jobs:
+        raise HTTPException(status_code=404, detail="Analysis ID not found")
+    
+    return analysis_jobs[analysis_id]
 
 @router.post("/module2/scan")
 async def scan_image(

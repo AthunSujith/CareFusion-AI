@@ -17,7 +17,7 @@ app.add_middleware(
     allow_origin_regex=r"https?://.*", # Allow all origins dynamically while supporting credentials
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "bypass-tunnel-reminder", "*"],
     expose_headers=["*"],
 )
 

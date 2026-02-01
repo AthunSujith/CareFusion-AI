@@ -157,16 +157,47 @@ const DoctorDashboard = () => {
 
             const data = await response.json();
 
-            const botMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                type: 'bot',
-                text: data.result?.ai_response && data.result.ai_response !== "" ? data.result.ai_response : "Neural reasoning complete. Structured analysis below.",
-                richData: data.result
-            };
-            setMessages(prev => [...prev, botMsg]);
-        } catch (error) {
+            if (data.status === 'accepted' && data.analysisId) {
+                // Poll for result
+                let completed = false;
+                const analysisId = data.analysisId;
+
+                while (!completed) {
+                    await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
+                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/module1/status/${analysisId}`;
+                    const statusRes = await fetch(statusUrl, {
+                        headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
+                    });
+
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'completed') {
+                            completed = true;
+                            const botMsg: Message = {
+                                id: (Date.now() + 1).toString(),
+                                type: 'bot',
+                                text: statusData.result?.ai_response && statusData.result.ai_response !== "" ? statusData.result.ai_response : "Neural reasoning complete. Structured analysis below.",
+                                richData: statusData.result
+                            };
+                            setMessages(prev => [...prev, botMsg]);
+                        } else if (statusData.status === 'failed') {
+                            completed = true;
+                            throw new Error(statusData.error || "Analysis failed on engine.");
+                        }
+                    }
+                }
+            } else {
+                const botMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    type: 'bot',
+                    text: data.result?.ai_response && data.result.ai_response !== "" ? data.result.ai_response : "Neural reasoning complete. Structured analysis below.",
+                    richData: data.result
+                };
+                setMessages(prev => [...prev, botMsg]);
+            }
+        } catch (error: any) {
             console.error("Failed to fetch AI response", error);
-            alert("❌ AI Inference Error: Connection to the Reasoning Node failed. Check network or local AI status.");
+            alert(`❌ AI Inference Error: ${error.message || 'Connection to the Reasoning Node failed.'}`);
         } finally {
             setIsThinking(false);
         }
@@ -229,13 +260,44 @@ const DoctorDashboard = () => {
 
             const data = await response.json();
 
-            const botMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                type: 'bot',
-                text: data.result?.ai_response && data.result.ai_response !== "" ? data.result.ai_response : "Neural reasoning complete. Structured analysis below.",
-                richData: data.result
-            };
-            setMessages(prev => [...prev, botMsg]);
+            if (data.status === 'accepted' && data.analysisId) {
+                // Poll for result
+                let completed = false;
+                const analysisId = data.analysisId;
+
+                while (!completed) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/module1/status/${analysisId}`;
+                    const statusRes = await fetch(statusUrl, {
+                        headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
+                    });
+
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'completed') {
+                            completed = true;
+                            const botMsg: Message = {
+                                id: (Date.now() + 1).toString(),
+                                type: 'bot',
+                                text: statusData.result?.ai_response && statusData.result.ai_response !== "" ? statusData.result.ai_response : "Neural reasoning complete. Structured analysis below.",
+                                richData: statusData.result
+                            };
+                            setMessages(prev => [...prev, botMsg]);
+                        } else if (statusData.status === 'failed') {
+                            completed = true;
+                            throw new Error(statusData.error || "Vocal analysis failed.");
+                        }
+                    }
+                }
+            } else {
+                const botMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    type: 'bot',
+                    text: data.result?.ai_response && data.result.ai_response !== "" ? data.result.ai_response : "Neural reasoning complete. Structured analysis below.",
+                    richData: data.result
+                };
+                setMessages(prev => [...prev, botMsg]);
+            }
         } catch (error: any) {
             console.error("Vocal analysis failure:", error);
             alert(`❌ Audio Analysis Linkage Error: ${error.message || 'Could not reach the Clinical Audio Engine.'}`);
