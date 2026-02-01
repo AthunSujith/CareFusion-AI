@@ -55,6 +55,10 @@ async def shutdown_db_client():
 async def root():
     return {"status": "ok", "message": "CareFusion AI Node is online"}
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return JSONResponse(status_code=204, content=None)
+
 # Include Routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(patients.router, prefix="/api/v2", tags=["Patients"])
