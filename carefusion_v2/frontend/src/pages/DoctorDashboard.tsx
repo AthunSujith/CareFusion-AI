@@ -37,7 +37,8 @@ import {
     Bot,
     TrendingUp,
     TrendingDown,
-    Info
+    Info,
+    FileDown
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FileUpload from '../components/FileUpload';
@@ -1305,8 +1306,60 @@ const DossierNavButton = ({ active, onClick, icon, label }: { active: boolean, o
  * PARSER: Converts raw AI text with A. B. C. sections into structured JSX
  */
 const ClinicalReportFormatter = ({ text }: { text: string }) => {
-    // Regex to split by sections (e.g., A. CLINICAL HYPOTHESIS)
-    // Matches the 40-character decorative line and the alphanumeric header
+    // Check if it's markdown-style or the old decorative style
+    const isMarkdown = text.includes('###') || text.includes('**');
+
+    if (isMarkdown) {
+        const sections = text.split(/(### [^\n]+)/);
+        return (
+            <div className="space-y-6 py-2">
+                {sections.map((section, idx) => {
+                    if (section.startsWith('###')) {
+                        return (
+                            <div key={idx} className="flex items-center gap-3 pt-4 border-b border-[#D9CBC2]/30 pb-2">
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3C507D]">{section.replace('###', '').trim()}</h4>
+                            </div>
+                        );
+                    }
+                    if (!section.trim()) return null;
+
+                    // Simple markdown-to-JSX for bold and bullets
+                    const lines = section.split('\n').filter(l => l.trim());
+                    return (
+                        <div key={idx} className="text-sm font-medium leading-relaxed text-black/90 space-y-2">
+                            {lines.map((line, lIdx) => {
+                                let content: any = line.trim();
+                                let isBullet = content.startsWith('•') || content.startsWith('*');
+
+                                if (isBullet) {
+                                    if (content.startsWith('•')) content = content.substring(1).trim();
+                                    else if (content.startsWith('*')) content = content.substring(1).trim();
+                                }
+
+                                // Bold parsing
+                                const parts = String(content).split(/(\*\*[^*]+\*\*)/g);
+                                const renderedContent = parts.map((part, pIdx) => {
+                                    if (part.startsWith('**') && part.endsWith('**')) {
+                                        return <span key={pIdx} className="font-black text-[#112250]">{part.slice(2, -2)}</span>;
+                                    }
+                                    return <span key={pIdx}>{part}</span>;
+                                });
+
+                                return (
+                                    <div key={lIdx} className={`${isBullet ? 'pl-4 relative' : ''}`}>
+                                        {isBullet && <span className="absolute left-0 text-[#112250]">•</span>}
+                                        {renderedContent}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    // Fallback to old decorative section parser
     const sections = text.split(/─{20,}\n([A-Z]\. [^\n]+)\n─{20,}/);
 
     if (sections.length < 2) {
@@ -1660,6 +1713,7 @@ const DnaResult = ({ file, result, loading, onAnalyze, onSave }: { file: File, r
 const TemporalResult = ({ result, onReset, onSave }: { result: any, onReset: () => void, onSave: () => void }) => {
     const risk = result?.risk_analysis || {};
     const findings = result?.temporal_findings || {};
+    const events = result?.timeline_events || [];
 
     const getRiskColor = (level: string) => {
         switch (level?.toLowerCase()) {
@@ -1671,8 +1725,18 @@ const TemporalResult = ({ result, onReset, onSave }: { result: any, onReset: () 
         }
     };
 
+    const getEventIcon = (type: string) => {
+        switch (type?.toLowerCase()) {
+            case 'symptom analysis': return <Brain size={14} />;
+            case 'image analysis': return <FileDown size={14} />;
+            case 'dna analysis': return <Dna size={14} />;
+            default: return <Activity size={14} />;
+        }
+    };
+
     return (
         <div className="w-full space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Risk Overview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className={`p-8 rounded-[2rem] border-2 shadow-sm space-y-4 ${getRiskColor(risk.overall_risk_level)}`}>
                     <div className="flex items-center justify-between">
@@ -1699,51 +1763,99 @@ const TemporalResult = ({ result, onReset, onSave }: { result: any, onReset: () 
                 </div>
             </div>
 
-            <div className="space-y-6">
-                <div className="flex items-center gap-3">
-                    <Bot size={20} className="text-[#112250]" />
-                    <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#112250]">Clinical Temporal Narrative</h5>
-                </div>
-                <div className="p-10 bg-white border-2 border-[#D9CBC2]/50 rounded-[3rem] shadow-inner">
-                    <p className="text-black font-medium leading-relaxed whitespace-pre-wrap text-sm lg:text-base italic">
-                        {result.explanation || "System analyzing longitudinal datasets..."}
-                    </p>
-                </div>
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                {/* Clinical Narrative - Left 2/3 */}
+                <div className="lg:col-span-2 space-y-8">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <Bot size={20} className="text-[#112250]" />
+                            <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#112250]">Clinical Temporal Narrative</h5>
+                        </div>
+                        <div className="p-10 bg-white border-2 border-[#D9CBC2]/50 rounded-[3rem] shadow-inner text-black">
+                            <ClinicalReportFormatter text={result.explanation || "System analyzing longitudinal datasets..."} />
+                        </div>
+                    </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="space-y-6">
-                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 px-4">Detected Patterns</h5>
-                    <div className="space-y-4">
-                        {findings.symptom_persistence?.length > 0 ? findings.symptom_persistence.map((p: any, i: number) => (
-                            <div key={i} className="p-6 bg-[#F5F0E9] border border-[#D9CBC2] rounded-2xl flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="text-sm font-bold text-black">{p.symptom}</p>
-                                    <p className="text-[9px] font-bold text-black/40 uppercase tracking-widest">{p.duration_days} Day Dur. | {p.occurrences} Events</p>
-                                </div>
-                                <Activity size={14} className="text-[#112250]" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                            <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 px-4">Detected Patterns</h5>
+                            <div className="space-y-4">
+                                {findings.symptom_persistence?.length > 0 ? findings.symptom_persistence.map((p: any, i: number) => (
+                                    <div key={i} className="p-6 bg-[#F5F0E9] border border-[#D9CBC2] rounded-2xl flex items-center justify-between">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-black">{p.symptom}</p>
+                                            <p className="text-[9px] font-bold text-black/40 uppercase tracking-widest">{p.duration_days} Day Dur. | {p.occurrences} Events</p>
+                                        </div>
+                                        <Activity size={14} className="text-[#112250]" />
+                                    </div>
+                                )) : (
+                                    <div className="p-6 bg-[#F5F0E9] border border-[#D9CBC2] rounded-2xl text-center">
+                                        <p className="text-xs font-bold text-black/40 uppercase tracking-widest">No persistent symptoms</p>
+                                    </div>
+                                )}
                             </div>
-                        )) : (
-                            <div className="p-6 bg-[#F5F0E9] border border-[#D9CBC2] rounded-2xl text-center">
-                                <p className="text-xs font-bold text-black/40 uppercase tracking-widest">No persistent symptoms</p>
+                        </div>
+
+                        <div className="space-y-6">
+                            <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 px-4">Diagnostic Integrity</h5>
+                            <div className="space-y-4">
+                                {findings.diagnostic_gaps?.length > 0 ? findings.diagnostic_gaps.map((g: any, i: number) => (
+                                    <div key={i} className="p-6 bg-rose-50 border border-rose-200 rounded-2xl space-y-2">
+                                        <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest">Procedural Gap Identified</p>
+                                        <p className="text-xs font-bold text-black">{g.recommendation}</p>
+                                    </div>
+                                )) : (
+                                    <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+                                        <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Workup Complete</p>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 px-4">Diagnostic Integrity</h5>
-                    <div className="space-y-4">
-                        {findings.diagnostic_gaps?.length > 0 ? findings.diagnostic_gaps.map((g: any, i: number) => (
-                            <div key={i} className="p-6 bg-rose-50 border border-rose-200 rounded-2xl space-y-2">
-                                <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest">Procedural Gap Identified</p>
-                                <p className="text-xs font-bold text-black">{g.recommendation}</p>
+                {/* Patient Timeline - Right 1/3 */}
+                <div className="space-y-8">
+                    <div className="flex items-center gap-3">
+                        <HistoryIcon size={20} className="text-[#112250]" />
+                        <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#112250]">Audit Timeline</h5>
+                    </div>
+                    <div className="relative pl-6 space-y-8 before:absolute before:left-0 before:top-2 before:bottom-2 before:w-px before:bg-[#D9CBC2]">
+                        {events.length > 0 ? events.map((event: any, idx: number) => (
+                            <div key={idx} className="relative">
+                                <div className="absolute -left-[25px] top-1 w-2.5 h-2.5 rounded-full bg-[#112250] border-4 border-[#F5F0E9] shadow-sm" />
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-[10px] font-black text-[#112250] opacity-40 uppercase tracking-widest">{event.date}</p>
+                                        <span className="px-1.5 py-0.5 rounded bg-[#F5F0E9] text-[8px] font-black text-[#112250] uppercase tracking-tighter border border-[#D9CBC2]/50">
+                                            {event.event_type}
+                                        </span>
+                                    </div>
+                                    <div className="p-4 bg-white border border-[#D9CBC2]/30 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <p className="text-xs font-bold text-black truncate w-40">{event.summary}</p>
+                                            <div className="text-[#112250] opacity-30">{getEventIcon(event.event_type)}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${event.risk_level === 'high' ? 'bg-rose-500' : event.risk_level === 'medium' ? 'bg-[#E0C58F]' : 'bg-emerald-500'}`} />
+                                            <p className="text-[9px] font-bold text-black/50 uppercase tracking-widest">{event.risk_level} Risk</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )) : (
-                            <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
-                                <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Workup Complete</p>
-                            </div>
+                            <div className="py-10 text-center text-black/20 italic text-sm">No historical data found</div>
                         )}
+                        {/* Current Observation Node */}
+                        <div className="relative pt-4">
+                            <div className="absolute -left-[25px] top-5 w-2.5 h-2.5 rounded-full bg-rose-600 border-4 border-[#F5F0E9] ring-4 ring-rose-600/20 animate-pulse" />
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Active Observation</p>
+                                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl shadow-sm">
+                                    <p className="text-xs font-bold text-rose-900 italic">"Processing new clinical input..."</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
