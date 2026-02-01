@@ -150,7 +150,9 @@ async def analyze_dna(
         await out_file.write(content)
         
     args = ["--vcf", file_path]
-    output = run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE3_SCRIPT_PATH, args)
+    # Use specific executable for module 3 (conda env) if provided
+    python_exe = settings.MODULE3_PYTHON_EXECUTABLE or settings.AI_PYTHON_EXECUTABLE
+    output = run_script(python_exe, settings.MODULE3_SCRIPT_PATH, args)
     data = extract_json(output, "---DNA_RESULT_START---", "---DNA_RESULT_END---")
     
     return data
