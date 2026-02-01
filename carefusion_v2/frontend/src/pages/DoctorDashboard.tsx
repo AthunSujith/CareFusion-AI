@@ -1323,7 +1323,7 @@ const DossierView = ({ patient, onBack, onWorkspace }: { patient: Patient | null
         if (!patient) return;
         try {
             const baseUrl = getApiBase();
-            const response = await fetch(`${baseUrl}${API_ENDPOINTS.AI}/records/categories/${patient.id}`, {
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.PATIENTS}/${patient.id}/categories`, {
                 headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
             });
             const data = await response.json();

@@ -124,7 +124,7 @@ const PatientDashboard = () => {
     const fetchCategories = async () => {
         try {
             const baseUrl = getApiBase();
-            const response = await fetch(`${baseUrl}${API_ENDPOINTS.PATIENTS}/patients/${PATIENT_ID}/categories`, {
+            const response = await fetch(`${baseUrl}${API_ENDPOINTS.PATIENTS}/${PATIENT_ID}/categories`, {
                 headers: {
                     'Authorization': 'Bearer clinical-access-token-2026',
                     'bypass-tunnel-reminder': 'true'
