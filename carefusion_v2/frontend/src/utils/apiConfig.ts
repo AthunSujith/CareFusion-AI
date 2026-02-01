@@ -6,7 +6,7 @@ const getStoredTunnel = () => {
     }
 };
 
-const DEFAULT_TUNNEL = 'https://clinical-bridge-2026.loca.lt'; // Fallback
+const DEFAULT_TUNNEL = 'https://new-dog-46.loca.lt'; // Fallback
 
 export const getApiBase = () => {
     // 1. Priority: Environment Variable (Vite/Next)
