@@ -17,16 +17,17 @@ const AdminLogin = () => {
         setError('');
 
         try {
-            const formData = new FormData();
-            formData.append('username', username);
-            formData.append('password', password);
+            const params = new URLSearchParams();
+            params.append('username', username);
+            params.append('password', password);
 
             const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/auth/login`, {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
                     'bypass-tunnel-reminder': 'true'
                 },
-                body: formData,
+                body: params,
             });
 
             if (response.ok) {
