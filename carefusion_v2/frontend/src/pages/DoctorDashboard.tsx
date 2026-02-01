@@ -34,7 +34,10 @@ import {
     Download,
     Terminal,
     MessagesSquare,
-    Bot
+    Bot,
+    TrendingUp,
+    TrendingDown,
+    Info
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FileUpload from '../components/FileUpload';
@@ -110,6 +113,11 @@ const DoctorDashboard = () => {
     const [isChatThinking, setIsChatThinking] = useState(false);
     const [chatPdf, setChatPdf] = useState<File | null>(null);
     const chatPdfInputRef = useRef<HTMLInputElement>(null);
+
+    // Module 4 Logic (Temporal)
+    const [temporalResult, setTemporalResult] = useState<any>(null);
+    const [isTemporalProcessing, setIsTemporalProcessing] = useState(false);
+    const [temporalObservation, setTemporalObservation] = useState('Patient reports worsening fatigue and persistent nocturnal cough over the last 3 weeks.');
 
     const handleConnect = () => {
         if (syncCode.length === 11) {
@@ -472,6 +480,39 @@ const DoctorDashboard = () => {
         }
     };
 
+    const triggerTemporalAnalysis = async () => {
+        setIsTemporalProcessing(true);
+        const formData = new FormData();
+        formData.append('userId', CURRENT_PATIENT_ID);
+        formData.append('observation', temporalObservation);
+
+        try {
+            const baseUrl = getApiBase();
+            const url = `${baseUrl}${API_ENDPOINTS.AI}/module4/temporal`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer clinical-access-token-2026',
+                    'bypass-tunnel-reminder': 'true'
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Temporal node unavailable' }));
+                throw new Error(errorData.detail || `Server error ${response.status}`);
+            }
+
+            const data = await response.json();
+            setTemporalResult(data);
+        } catch (error: any) {
+            console.error("Temporal Analysis failed", error);
+            alert(`❌ Temporal Node Error: ${error.message || 'Failed to sync clinical history.'}`);
+        } finally {
+            setIsTemporalProcessing(false);
+        }
+    };
+
 
     return (
         <div className="flex h-screen bg-[#F5F0E9] text-black font-main antialiased overflow-hidden">
@@ -816,29 +857,66 @@ const DoctorDashboard = () => {
                                                 </div>
                                             </motion.div>
                                         ) : (
-                                            <motion.div key="temporal-node" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center p-20 gap-8">
-                                                <div className="p-12 bg-[#3C507D]/10 rounded-[3rem] border border-[#3C507D]/20 shadow-inner"><Clock size={100} className="text-[#112250] animate-pulse" /></div>
-                                                <div className="text-center space-y-6 max-w-xl">
-                                                    <h4 className="text-5xl font-black uppercase tracking-tight text-[#112250]">Health Drift</h4>
-                                                    <p className="text-[#3C507D] font-bold uppercase tracking-[0.2em] text-sm">Longitudinal Clinical Assessment In Progress</p>
-                                                    <div className="p-8 bg-[#112250] text-[#F5F0E9] rounded-[2rem] text-left space-y-6 shadow-2xl relative overflow-hidden">
-                                                        <div className="flex items-center justify-between border-b border-[#3C507D]/30 pb-4">
-                                                            <div className="flex items-center gap-4">
-                                                                <Timer className="text-[#E0C58F]" />
-                                                                <span className="font-bold text-sm uppercase tracking-widest text-[#E0C58F]">Prediction Engine</span>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => alert('Longitudinal drift analysis saved to persistent ledger.')}
-                                                                className="px-3 py-1 bg-[#E0C58F] text-black text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-white transition-all"
-                                                            >
-                                                                <Save size={10} className="inline mr-1" /> Save Prediction
-                                                            </button>
+                                            <motion.div key="temporal-node" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col p-10 h-full overflow-y-auto custom-scrollbar">
+                                                <div className="max-w-4xl mx-auto w-full space-y-12">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="space-y-1">
+                                                            <h4 className="text-4xl font-black uppercase tracking-tight text-[#112250]">Health Drift</h4>
+                                                            <p className="text-[#3C507D] font-bold uppercase tracking-[0.2em] text-[10px]">Longitudinal Clinical Progression Monitoring</p>
                                                         </div>
-                                                        <p className="font-medium italic text-[#D9CBC2] opacity-80 leading-relaxed">Analyzing 24 months of biometric drift. Comparing current vital trends with historical averages. Identifying anomalies in sleep-cycle cadence and metabolic flux.</p>
-                                                        <div className="flex gap-4">
-                                                            <div className="h-2 flex-1 bg-[#3C507D]/50 rounded-full overflow-hidden"><motion.div initial={{ x: '-100%' }} animate={{ x: '0%' }} transition={{ duration: 5, repeat: Infinity }} className="h-full w-full bg-[#E0C58F]" /></div>
+                                                        <div className="p-6 bg-[#3C507D]/10 rounded-3xl border border-[#3C507D]/20 shadow-inner">
+                                                            <Clock size={40} className={`text-[#112250] ${isTemporalProcessing ? 'animate-spin' : ''}`} />
                                                         </div>
                                                     </div>
+
+                                                    {!temporalResult ? (
+                                                        <div className="space-y-8">
+                                                            <div className="p-8 bg-[#112250] text-[#F5F0E9] rounded-[2.5rem] space-y-6 shadow-2xl relative overflow-hidden group">
+                                                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                                                                    <Timer size={120} />
+                                                                </div>
+                                                                <div className="flex items-center gap-4 border-b border-[#3C507D]/30 pb-4">
+                                                                    <Timer className="text-[#E0C58F]" />
+                                                                    <span className="font-bold text-xs uppercase tracking-widest text-[#E0C58F]">New Insight Integration</span>
+                                                                </div>
+                                                                <div className="space-y-4">
+                                                                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Enter current clinical observations to correlate against history:</p>
+                                                                    <textarea
+                                                                        value={temporalObservation}
+                                                                        onChange={(e) => setTemporalObservation(e.target.value)}
+                                                                        placeholder="Enter new patterns, symptoms, or test results..."
+                                                                        className="w-full min-h-[120px] bg-[#3C507D]/20 border-2 border-[#3C507D]/30 rounded-2xl p-6 text-white outline-none focus:border-[#E0C58F]/50 transition-all font-medium text-sm resize-none"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex gap-4">
+                                                                    <div className="h-1 flex-1 bg-[#3C507D]/50 rounded-full overflow-hidden">
+                                                                        {isTemporalProcessing && <motion.div initial={{ x: '-100%' }} animate={{ x: '100%' }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} className="h-full w-full bg-[#E0C58F]" />}
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={triggerTemporalAnalysis}
+                                                                    disabled={isTemporalProcessing}
+                                                                    className="w-full py-5 bg-[#E0C58F] text-[#112250] font-black uppercase tracking-[0.3em] text-sm rounded-2xl hover:bg-white transition-all shadow-xl disabled:opacity-50"
+                                                                >
+                                                                    {isTemporalProcessing ? "Analyzing Biometric Drift..." : "Execute Longitudinal Scan"}
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="p-10 border-2 border-dashed border-[#D9CBC2] rounded-[2.5rem] bg-white/50 space-y-6">
+                                                                <div className="flex items-center gap-3 opacity-40">
+                                                                    <HistoryIcon size={16} />
+                                                                    <span className="text-[10px] font-bold uppercase tracking-widest">History Summary</span>
+                                                                </div>
+                                                                <p className="text-black/40 text-sm italic font-medium">Connect clinical nodes to build a temporal heatmap of patient health over months or years. The prediction engine identifies drift patterns before symptoms become critical.</p>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <TemporalResult
+                                                            result={temporalResult}
+                                                            onReset={() => setTemporalResult(null)}
+                                                            onSave={() => alert('Longitudinal drift analysis saved to persistent ledger.')}
+                                                        />
+                                                    )}
                                                 </div>
                                             </motion.div>
                                         )}
@@ -1579,8 +1657,114 @@ const DnaResult = ({ file, result, loading, onAnalyze, onSave }: { file: File, r
     );
 };
 
+const TemporalResult = ({ result, onReset, onSave }: { result: any, onReset: () => void, onSave: () => void }) => {
+    const risk = result?.risk_analysis || {};
+    const findings = result?.temporal_findings || {};
 
+    const getRiskColor = (level: string) => {
+        switch (level?.toLowerCase()) {
+            case 'high':
+            case 'elevated':
+            case 'critical': return 'text-rose-600 bg-rose-50 border-rose-200';
+            case 'moderate': return 'text-[#E0C58F] bg-[#E0C58F]/10 border-[#E0C58F]/20';
+            default: return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        }
+    };
 
+    return (
+        <div className="w-full space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className={`p-8 rounded-[2rem] border-2 shadow-sm space-y-4 ${getRiskColor(risk.overall_risk_level)}`}>
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Risk Level</span>
+                        <ShieldAlert size={18} />
+                    </div>
+                    <p className="text-3xl font-black uppercase tracking-tight">{risk.overall_risk_level || 'Stable'}</p>
+                </div>
+
+                <div className="p-8 bg-white rounded-[2rem] border-2 border-[#D9CBC2]/30 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">Trajectory</span>
+                        {risk.risk_trajectory === 'increasing' ? <TrendingUp size={18} className="text-rose-600" /> : <TrendingDown size={18} className="text-emerald-600" />}
+                    </div>
+                    <p className="text-3xl font-black uppercase tracking-tight text-[#112250]">{risk.risk_trajectory || 'Stable'}</p>
+                </div>
+
+                <div className="p-8 bg-[#112250] rounded-[2rem] shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#E0C58F]/60">Analysis Conf.</span>
+                        <Info size={18} className="text-[#E0C58F]" />
+                    </div>
+                    <p className="text-3xl font-black uppercase tracking-tight text-[#E0C58F]">{((risk.confidence || 0) * 100).toFixed(0)}%</p>
+                </div>
+            </div>
+
+            <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <Bot size={20} className="text-[#112250]" />
+                    <h5 className="text-xs font-black uppercase tracking-[0.2em] text-[#112250]">Clinical Temporal Narrative</h5>
+                </div>
+                <div className="p-10 bg-white border-2 border-[#D9CBC2]/50 rounded-[3rem] shadow-inner">
+                    <p className="text-black font-medium leading-relaxed whitespace-pre-wrap text-sm lg:text-base italic">
+                        {result.explanation || "System analyzing longitudinal datasets..."}
+                    </p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 px-4">Detected Patterns</h5>
+                    <div className="space-y-4">
+                        {findings.symptom_persistence?.length > 0 ? findings.symptom_persistence.map((p: any, i: number) => (
+                            <div key={i} className="p-6 bg-[#F5F0E9] border border-[#D9CBC2] rounded-2xl flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-sm font-bold text-black">{p.symptom}</p>
+                                    <p className="text-[9px] font-bold text-black/40 uppercase tracking-widest">{p.duration_days} Day Dur. | {p.occurrences} Events</p>
+                                </div>
+                                <Activity size={14} className="text-[#112250]" />
+                            </div>
+                        )) : (
+                            <div className="p-6 bg-[#F5F0E9] border border-[#D9CBC2] rounded-2xl text-center">
+                                <p className="text-xs font-bold text-black/40 uppercase tracking-widest">No persistent symptoms</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 px-4">Diagnostic Integrity</h5>
+                    <div className="space-y-4">
+                        {findings.diagnostic_gaps?.length > 0 ? findings.diagnostic_gaps.map((g: any, i: number) => (
+                            <div key={i} className="p-6 bg-rose-50 border border-rose-200 rounded-2xl space-y-2">
+                                <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest">Procedural Gap Identified</p>
+                                <p className="text-xs font-bold text-black">{g.recommendation}</p>
+                            </div>
+                        )) : (
+                            <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+                                <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Workup Complete</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-6 pt-10">
+                <button
+                    onClick={onSave}
+                    className="flex-1 py-5 bg-[#112250] text-[#E0C58F] font-black uppercase tracking-[0.3em] text-xs rounded-2xl hover:bg-black transition-all shadow-xl flex items-center justify-center gap-3"
+                >
+                    <Save size={16} /> Save to Patient Registry
+                </button>
+                <button
+                    onClick={onReset}
+                    className="px-10 py-5 border-2 border-[#112250] text-[#112250] font-black uppercase tracking-[0.3em] text-xs rounded-2xl hover:bg-[#112250] hover:text-white transition-all"
+                >
+                    Analyze New Event
+                </button>
+            </div>
+        </div>
+    );
+};
 
 // Sub-components
 const SidebarIcon = ({ icon, active, onClick, label }: { icon: React.ReactNode, active: boolean, onClick: () => void, label: string }) => (
@@ -1616,6 +1800,5 @@ const StatCard = ({ label, val, icon }: { label: string, val: string, icon: Reac
         <div className="text-4xl font-black text-black tracking-tight">{val}</div>
     </div>
 );
-
 
 export default DoctorDashboard;

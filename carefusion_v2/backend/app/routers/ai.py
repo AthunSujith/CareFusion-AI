@@ -157,6 +157,23 @@ async def analyze_dna(
     
     return data
 
+@router.post("/module4/temporal")
+async def analyze_temporal(
+    userId: str = Form(...),
+    observation: str = Form(...)
+):
+    print(f"DEBUG: Temporal Analysis started for user {userId}")
+    args = [userId, observation]
+    
+    try:
+        output = run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE4_SCRIPT_PATH, args)
+        data = extract_json(output, "---TEMPORAL_OUTPUT_START---", "---TEMPORAL_OUTPUT_END---")
+        print(f"DEBUG: Temporal Analysis finished. Risk Level: {data.get('risk_analysis', {}).get('overall_risk_level', 'unknown')}")
+        return data
+    except Exception as e:
+        print(f"ERROR in analyze_temporal: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/chat/general")
 async def general_chat(
     prompt: str = Form(...),
