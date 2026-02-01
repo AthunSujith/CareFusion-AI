@@ -108,9 +108,20 @@ def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = No
     # 0) Pre-flight Checks
     import requests
     try:
+        # Check server
         requests.get("http://localhost:11434/api/tags", timeout=1)
+        # Check models
+        models_resp = requests.get("http://localhost:11434/api/tags").json()
+        downloaded_models = [m['name'] for m in models_resp.get('models', [])]
+        
+        required = [DEFAULT_LLM_MODEL, FINAL_LLM_MODEL, "bge-m3:latest"]
+        for req in required:
+            # Match against name or name:latest
+            if not any(req in m for m in downloaded_models):
+                print(f"WARNING: Required model '{req}' might be missing. Attempting to pull...")
+                # We don't pull here as it's blocking, but we warn
     except:
-        raise RuntimeError("Ollama server is not running. Please start Ollama before running the pipeline.")
+        raise RuntimeError("Ollama server is not running or unreachable. Please start Ollama before running the pipeline.")
 
     with Timer("Full Pipeline Execution"):
         # 1) Transcribe (skip if text already provided)

@@ -51,6 +51,8 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 executor = ThreadPoolExecutor(max_workers=5)
+# Global lock to prevent simultaneous heavy AI processes from saturating CPU/GPU
+ai_lock = asyncio.Lock()
 
 def run_script_sync(python_path: str, script_path: str, args: list) -> str:
     cmd = [python_path, script_path] + args
@@ -76,8 +78,9 @@ def run_script_sync(python_path: str, script_path: str, args: list) -> str:
         raise Exception(f"Subprocess failed: {str(e)}")
 
 async def run_script(python_path: str, script_path: str, args: list) -> str:
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, run_script_sync, python_path, script_path, args)
+    async with ai_lock:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(executor, run_script_sync, python_path, script_path, args)
 
 def extract_json(output: str, marker_start: str = "---PIPELINE_OUTPUT_START---", marker_end: str = "---PIPELINE_OUTPUT_END---") -> dict:
     marker_pattern = f"{marker_start}(.*?){marker_end}"
