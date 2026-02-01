@@ -52,6 +52,8 @@ const AdminDashboard = () => {
     const [viewingDoc, setViewingDoc] = useState<ViewingDoc | null>(null);
     const [docUrl, setDocUrl] = useState<string | null>(null);
     const [reason, setReason] = useState('');
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [systemSettings, setSystemSettings] = useState<any>(null);
 
     // Mock Login Check
     useEffect(() => {
@@ -59,9 +61,11 @@ const AdminDashboard = () => {
         if (!token) {
             navigate('/admin/login');
         } else {
-            fetchQueue();
+            if (activeTab === 'queue') fetchQueue();
+            if (activeTab === 'audit') fetchAuditLogs();
+            if (activeTab === 'settings') fetchSettings();
         }
-    }, [subTab]); // Refetch when switching subtab
+    }, [activeTab, subTab]); // Refetch when switching tabs
 
     const fetchQueue = async () => {
         try {
@@ -158,6 +162,42 @@ const AdminDashboard = () => {
             }
         } catch (e) {
             console.error(e);
+        }
+    };
+
+    const fetchAuditLogs = async () => {
+        try {
+            const token = localStorage.getItem('admin_token');
+            const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/audit/logs`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'bypass-tunnel-reminder': 'true'
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setAuditLogs(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch audit logs", error);
+        }
+    };
+
+    const fetchSettings = async () => {
+        try {
+            const token = localStorage.getItem('admin_token');
+            const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/settings`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'bypass-tunnel-reminder': 'true'
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setSystemSettings(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch settings", error);
         }
     };
 
@@ -307,6 +347,130 @@ const AdminDashboard = () => {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'audit' && (
+                    <>
+                        <header className="mb-8">
+                            <h1 className="text-2xl font-bold text-white mb-2">Audit Logs</h1>
+                            <p className="text-slate-400">Track all administrative actions and security events</p>
+                        </header>
+
+                        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
+                            <table className="w-full">
+                                <thead className="bg-slate-900/50 border-b border-slate-700">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Timestamp</th>
+                                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Admin</th>
+                                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Action</th>
+                                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Target ID</th>
+                                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700">
+                                    {auditLogs.map((log, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
+                                            <td className="px-6 py-4 text-xs text-slate-400">{new Date(log.timestamp).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-sm text-slate-200">{log.admin_id}</td>
+                                            <td className="px-6 py-4">
+                                                <span className="px-2 py-1 bg-slate-900 text-indigo-400 border border-indigo-500/20 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                                                    {log.action}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-xs text-slate-400">{log.target_user_id}</td>
+                                            <td className="px-6 py-4 text-sm text-slate-400">{log.decision_reason || '-'}</td>
+                                        </tr>
+                                    ))}
+                                    {auditLogs.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                                                No audit logs recorded yet.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'settings' && systemSettings && (
+                    <>
+                        <header className="mb-8">
+                            <h1 className="text-2xl font-bold text-white mb-2">Security Settings</h1>
+                            <p className="text-slate-400">System security configuration and audit parameters</p>
+                        </header>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="bg-slate-800/50 border border-slate-700/50 p-8 rounded-2xl">
+                                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-3">
+                                    <Lock className="w-5 h-5 text-indigo-400" /> Administrative Access
+                                </h3>
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-200">Session Timeout</p>
+                                            <p className="text-xs text-slate-500">Automatic logout after inactivity</p>
+                                        </div>
+                                        <span className="text-indigo-400 font-mono text-sm">{systemSettings.admin_session_timeout}s</span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-200">2FA Status</p>
+                                            <p className="text-xs text-slate-500">Multi-factor authentication requirement</p>
+                                        </div>
+                                        <span className={`px-2 py-1 rounded text-[10px] font-bold ${systemSettings.admin_2fa_enabled ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                            {systemSettings.admin_2fa_enabled ? 'ENABLED' : 'DISABLED'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-200">JWT Algorithm</p>
+                                            <p className="text-xs text-slate-500">Token signature method</p>
+                                        </div>
+                                        <span className="text-slate-400 font-mono text-xs">{systemSettings.algorithm}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-800/50 border border-slate-700/50 p-8 rounded-2xl">
+                                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-3">
+                                    <Shield className="w-5 h-5 text-emerald-400" /> Verification Protocol
+                                </h3>
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-200">NMC Verification</p>
+                                            <p className="text-xs text-slate-500">Automated medical license checks</p>
+                                        </div>
+                                        <span className={`px-2 py-1 rounded text-[10px] font-bold ${systemSettings.nmc_verification_required ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                            {systemSettings.nmc_verification_required ? 'ACTIVE' : 'INACTIVE'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-200">Encryption Method</p>
+                                            <p className="text-xs text-slate-500">Document rest-state encryption</p>
+                                        </div>
+                                        <span className="text-slate-400 font-mono text-xs">{systemSettings.document_encryption}</span>
+                                    </div>
+                                    <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl">
+                                        <p className="text-xs text-indigo-300 mb-2 font-bold uppercase tracking-wider">Risk Thresholds</p>
+                                        <div className="flex gap-4">
+                                            <div className="flex-1 bg-slate-950 p-2 rounded-lg text-center">
+                                                <p className="text-[10px] text-slate-500 font-bold">MEDIUM</p>
+                                                <p className="text-sm font-bold text-amber-500">{systemSettings.risk_thresholds.medium}%</p>
+                                            </div>
+                                            <div className="flex-1 bg-slate-950 p-2 rounded-lg text-center">
+                                                <p className="text-[10px] text-slate-500 font-bold">HIGH</p>
+                                                <p className="text-sm font-bold text-red-500">{systemSettings.risk_thresholds.high}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </>
                 )}

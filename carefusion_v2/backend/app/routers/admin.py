@@ -124,6 +124,27 @@ async def get_queue_item_details(target_id: str, db = Depends(get_db), admin: st
     item["_id"] = str(item["_id"])
     return item
 
+# --- Audit Log Endpoints ---
+
+@router.get("/audit/logs", response_model=List[AuditLogEntry])
+async def get_audit_logs(db = Depends(get_db), admin: str = Depends(get_current_admin)):
+    logs = await db.audit_logs.find().sort("timestamp", -1).to_list(100)
+    return logs
+
+@router.get("/settings")
+async def get_admin_settings(admin: str = Depends(get_current_admin)):
+    return {
+        "admin_session_timeout": settings.ADMIN_SESSION_TIMEOUT,
+        "admin_2fa_enabled": settings.ADMIN_2FA_ENABLED,
+        "algorithm": settings.ALGORITHM,
+        "document_encryption": "AES-256-GCM",
+        "risk_thresholds": {
+            "high": settings.RISK_SCORE_HIGH_THRESHOLD,
+            "medium": settings.RISK_SCORE_MEDIUM_THRESHOLD
+        },
+        "nmc_verification_required": settings.REQUIRE_NMC_VERIFICATION
+    }
+
 # --- Document Handling ---
 
 @router.post("/document/view")
