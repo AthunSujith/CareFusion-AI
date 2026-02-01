@@ -39,6 +39,24 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: List[str] = ["*"] # Allow all for tunneling ease
 
+    # Security & Admin
+    DOCUMENT_ENCRYPTION_KEY: Optional[str] = None
+    ENCRYPTED_DOCUMENTS_PATH: str = "C:/CareFusion-AI/data/encrypted_documents"
+    ADMIN_JWT_SECRET: str = "secret"
+    ADMIN_SESSION_TIMEOUT: int = 1800
+    
+    # Verification
+    MAX_DOCUMENT_SIZE_MB: int = 5
+    REQUIRE_NMC_VERIFICATION: bool = False
+    
+    # Email
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    FROM_EMAIL: str = "noreply@carefusion.ai"
+    ACTIVATION_LINK_EXPIRY_HOURS: int = 24
+
     class Config:
         env_file = ".env"
         extra = "ignore" 

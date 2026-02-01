@@ -12,18 +12,21 @@ from app.core.encryption import DocumentEncryption
 from app.models.verification import DocumentMetadata, DocumentType
 from datetime import datetime
 
+from app.core.config import get_settings
+
 class LocalDocumentStorage:
     """
     Manages encrypted document storage on local filesystem.
     Documents stored in: C:/CareFusion-AI/data/encrypted_documents/
     """
     
-    def __init__(self, base_path: str = "C:/CareFusion-AI/data/encrypted_documents"):
-        self.base_path = Path(base_path)
+    def __init__(self, base_path: Optional[str] = None):
+        settings = get_settings()
+        self.base_path = Path(base_path or settings.ENCRYPTED_DOCUMENTS_PATH)
         self.base_path.mkdir(parents=True, exist_ok=True)
         
-        # Get encryption key from environment
-        master_key = os.getenv("DOCUMENT_ENCRYPTION_KEY")
+        # Get encryption key from settings
+        master_key = settings.DOCUMENT_ENCRYPTION_KEY
         if not master_key:
             raise ValueError("DOCUMENT_ENCRYPTION_KEY not set in environment")
         
