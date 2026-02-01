@@ -6,7 +6,7 @@ const getStoredTunnel = () => {
     }
 };
 
-const DEFAULT_TUNNEL = 'https://yellow-owl-70.loca.lt'; // Fallback
+const DEFAULT_TUNNEL = 'https://breezy-cows-start.loca.lt'; // Fallback
 
 export const getApiBase = () => {
     // 1. Priority: Environment Variable (Vite/Next)
@@ -51,3 +51,6 @@ export const API_ENDPOINTS = {
     ADMIN: '/api/v2/admin',
     SIGNUP: '/api/v2/signup'
 };
+
+
+
