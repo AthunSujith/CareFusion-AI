@@ -66,6 +66,22 @@ const Signup = () => {
             return;
         }
 
+        if (password.length < 8) {
+            setError("Password must be at least 8 characters");
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email.match(emailRegex)) {
+            setError("Please enter a valid email address");
+            return;
+        }
+
+        if (phone.length < 10) {
+            setError("Please enter a valid phone number");
+            return;
+        }
+
         if (uploadedDocs.length === 0) {
             setError("Please upload at least one identity document.");
             return;
