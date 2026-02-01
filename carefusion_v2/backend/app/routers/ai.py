@@ -47,19 +47,31 @@ class GenomicsSaveRequest(BaseModel):
     interpretation: str
 
 # Helper Functions
-def run_script(python_path: str, script_path: str, args: list) -> str:
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+executor = ThreadPoolExecutor(max_workers=5)
+
+def run_script_sync(python_path: str, script_path: str, args: list) -> str:
     cmd = [python_path, script_path] + args
     cwd = os.path.dirname(script_path)
     try:
+        # Increased timeout to 600s (10 mins) for heavy LLM reasoning
         result = subprocess.run(
-            cmd, capture_output=True, text=True, encoding='utf-8', cwd=cwd, timeout=300
+            cmd, capture_output=True, text=True, encoding='utf-8', cwd=cwd, timeout=600
         )
         if result.returncode != 0:
             print(f"Error running script {script_path}: {result.stderr}")
             raise Exception(f"Script failed: {result.stderr}")
         return result.stdout
+    except subprocess.TimeoutExpired:
+        raise Exception(f"Clinical Engine timed out after 600 seconds. The audio file might be too long or system resources are reaching capacity.")
     except Exception as e:
         raise Exception(f"Subprocess failed: {str(e)}")
+
+async def run_script(python_path: str, script_path: str, args: list) -> str:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, run_script_sync, python_path, script_path, args)
 
 def extract_json(output: str, marker_start: str = "---PIPELINE_OUTPUT_START---", marker_end: str = "---PIPELINE_OUTPUT_END---") -> dict:
     marker_pattern = f"{marker_start}(.*?){marker_end}"
@@ -102,7 +114,7 @@ async def analyze_symptoms(
     args = [input_data]
     if is_text: args.append("--text")
     
-    output = run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE1_SCRIPT_PATH, args)
+    output = await run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE1_SCRIPT_PATH, args)
     data = extract_json(output)
     
     return {"status": "success", "result": data}
@@ -128,7 +140,7 @@ async def scan_image(
         
         print(f"DEBUG: File saved to {file_path}. Running AI script...")
         args = [file_path, settings.MODULE2_CHECKPOINT, temp_dir]
-        output = run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE2_SCRIPT_PATH, args)
+        output = await run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE2_SCRIPT_PATH, args)
         data = extract_json(output)
         print(f"DEBUG: AI Script finished. Result: {data.get('prediction', 'No prediction')}")
         return data
@@ -152,7 +164,7 @@ async def analyze_dna(
     args = ["--vcf", file_path]
     # Use specific executable for module 3 (conda env) if provided
     python_exe = settings.MODULE3_PYTHON_EXECUTABLE or settings.AI_PYTHON_EXECUTABLE
-    output = run_script(python_exe, settings.MODULE3_SCRIPT_PATH, args)
+    output = await run_script(python_exe, settings.MODULE3_SCRIPT_PATH, args)
     data = extract_json(output, "---DNA_RESULT_START---", "---DNA_RESULT_END---")
     
     return data
@@ -166,7 +178,7 @@ async def analyze_temporal(
     args = [userId, observation]
     
     try:
-        output = run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE4_SCRIPT_PATH, args)
+        output = await run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE4_SCRIPT_PATH, args)
         data = extract_json(output, "---TEMPORAL_OUTPUT_START---", "---TEMPORAL_OUTPUT_END---")
         print(f"DEBUG: Temporal Analysis finished. Risk Level: {data.get('risk_analysis', {}).get('overall_risk_level', 'unknown')}")
         return data
@@ -188,7 +200,7 @@ async def general_chat(
             await out_file.write(await pdf_doc.read())
         args.extend(["--pdf", temp_path])
         
-    output = run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE_CHAT_SCRIPT_PATH, args)
+    output = await run_script(settings.AI_PYTHON_EXECUTABLE, settings.MODULE_CHAT_SCRIPT_PATH, args)
     data = extract_json(output)
     return {"status": "success", "result": data}
 
