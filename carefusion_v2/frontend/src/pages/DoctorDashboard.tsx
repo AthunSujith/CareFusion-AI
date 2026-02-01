@@ -1776,7 +1776,7 @@ const TemporalResult = ({ result, onReset, onSave }: { result: any, onReset: () 
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                         <div className="space-y-6">
                             <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 px-4">Detected Patterns</h5>
                             <div className="space-y-4">
@@ -1791,6 +1791,26 @@ const TemporalResult = ({ result, onReset, onSave }: { result: any, onReset: () 
                                 )) : (
                                     <div className="p-6 bg-[#F5F0E9] border border-[#D9CBC2] rounded-2xl text-center">
                                         <p className="text-xs font-bold text-black/40 uppercase tracking-widest">No persistent symptoms</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 px-4">Historical Correlates</h5>
+                            <div className="space-y-4">
+                                {findings.disease_relations?.length > 0 ? findings.disease_relations.map((r: any, i: number) => (
+                                    <div key={i} className="p-6 bg-[#112250] text-[#E0C58F] rounded-2xl space-y-2 shadow-lg">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Past Disease Tie</p>
+                                            <Zap size={12} className="animate-pulse" />
+                                        </div>
+                                        <p className="text-xs font-bold">{r.disease}</p>
+                                        <p className="text-[8px] font-medium leading-tight opacity-80 line-clamp-2">{r.context}</p>
+                                    </div>
+                                )) : (
+                                    <div className="p-6 border-2 border-dashed border-[#D9CBC2] rounded-2xl text-center">
+                                        <p className="text-xs font-bold text-black/20 uppercase tracking-widest">No Direct Past Ties</p>
                                     </div>
                                 )}
                             </div>

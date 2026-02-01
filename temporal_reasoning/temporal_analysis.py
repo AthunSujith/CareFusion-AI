@@ -185,16 +185,36 @@ class TemporalAnalyzer:
 
         return timeline
     
-    def detect_progression_patterns(self, timeline: PatientTimeline) -> Dict[str, Any]:
-        """Detect temporal patterns in patient history"""
+    def detect_progression_patterns(self, timeline: PatientTimeline, new_observation: str = "") -> Dict[str, Any]:
+        """Detect temporal patterns and historical disease relations in patient history"""
         patterns = {
             'symptom_persistence': [],
             'symptom_escalation': [],
             'recurring_cycles': [],
             'diagnostic_gaps': [],
+            'disease_relations': [],
             'risk_trajectory': 'stable'
         }
         
+        # --- NEW: Disease Correlation Analysis ---
+        if new_observation:
+            past_diseases = set()
+            for event in timeline.events:
+                # Extract disease name from various data formats
+                disease = event.data.get('disease') or event.data.get('prediction') or event.data.get('summary')
+                if disease and disease.upper() != 'UNKNOWN' and disease.upper() != 'NORMAL':
+                    past_diseases.add((disease, event.event_type, event.timestamp))
+
+            for disease_name, event_type, timestamp in past_diseases:
+                # Check for mention or semantic relation (simple keyword for now)
+                if disease_name.lower() in new_observation.lower() or any(word in new_observation.lower() for word in disease_name.lower().split()):
+                    patterns['disease_relations'].append({
+                        'disease': disease_name,
+                        'related_event_type': event_type.replace('_', ' ').title(),
+                        'original_date': timestamp.strftime('%Y-%m-%d'),
+                        'context': f"Historical record from {timestamp.year} shows {disease_name}. Current observation may indicate recurrence or secondary complication."
+                    })
+
         # Analyze symptom persistence
         for symptom, timestamps in timeline.symptoms_over_time.items():
             if len(timestamps) >= 2:
@@ -251,7 +271,7 @@ class TemporalAnalyzer:
         )
         
         # Detect patterns
-        patterns = self.detect_progression_patterns(timeline)
+        patterns = self.detect_progression_patterns(timeline, new_observation)
         
         # Calculate risk changes
         risk_analysis = self._calculate_risk_changes(timeline, new_observation, patterns)
@@ -365,6 +385,12 @@ class TemporalAnalyzer:
                 lines.append(f"• **{p['symptom'].title()}**: Persistent over {p['duration_days']} days ({p['occurrences']} documented occurrences).")
             lines.append("")
         
+        if patterns['disease_relations']:
+            lines.append("### HISTORICAL DISEASE CORRELATIONS")
+            for rel in patterns['disease_relations']:
+                lines.append(f"• **{rel['disease']}**: {rel['context']} (Matched from {rel['original_date']} record)")
+            lines.append("")
+
         if patterns['symptom_escalation']:
             lines.append("### SEVERITY ESCALATION DETECTED")
             for e in patterns['symptom_escalation']:
