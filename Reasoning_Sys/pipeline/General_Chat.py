@@ -97,16 +97,47 @@ def run_rag_chat(prompt, pdf_path=None, image_path=None):
         if "llava" in str(e).lower():
             ai_response += "\n\nTip: To analyze images, please run 'ollama pull llava' on the clinical node."
     finally:
-        # Cleanup
+        # Cleanup - Windows-safe approach
+        import time
+        import gc
+        
         if vectorstore:
-            vectorstore.delete_collection()
+            try:
+                # Explicitly delete collection and close client
+                vectorstore.delete_collection()
+                if hasattr(vectorstore, '_client'):
+                    del vectorstore._client
+                del vectorstore
+                gc.collect()  # Force garbage collection
+                time.sleep(0.5)  # Give Windows time to release file handles
+            except Exception as cleanup_error:
+                print(f"Warning: Vector store cleanup issue: {cleanup_error}")
+        
+        # Remove temp directory with retry for Windows
         if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    shutil.rmtree(temp_dir)
+                    break
+                except PermissionError:
+                    if attempt < max_retries - 1:
+                        time.sleep(1)  # Wait for file handles to close
+                        gc.collect()
+                    else:
+                        print(f"Warning: Could not delete temp directory {temp_dir}. It will be cleaned on next run.")
+        
         # Cleanup temp files passed by backend
         if pdf_path and "/temp_chat/" in pdf_path and os.path.exists(pdf_path):
-            os.remove(pdf_path)
+            try:
+                os.remove(pdf_path)
+            except Exception:
+                pass
         if image_path and "/temp_chat/" in image_path and os.path.exists(image_path):
-            os.remove(image_path)
+            try:
+                os.remove(image_path)
+            except Exception:
+                pass
 
     result = {
         "ai_response": ai_response,
