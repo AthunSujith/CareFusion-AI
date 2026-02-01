@@ -20,12 +20,12 @@ if exist "C:\CareFusion-AI\carefusionEV\Scripts\activate.bat" (
 
 :: 3. Check requirements
 echo [*] Verifying dependencies...
-pip install -r requirements.txt --quiet
+"C:\CareFusion-AI\carefusionEV\Scripts\pip.exe" install -r requirements.txt --quiet
 
 :: 4. Start Backend in a separate window
 echo [*] Starting FastAPI Server on http://localhost:8000 ...
 :: We use 0.0.0.0 to ensure tunneling works
-start "CareFusion API Server" cmd /k "uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+start "CareFusion API Server" cmd /k ""C:\CareFusion-AI\carefusionEV\Scripts\uvicorn.exe" main:app --host 0.0.0.0 --port 8000 --reload"
 
 :: 5. Handle Ngrok/Tunnel
 echo.
