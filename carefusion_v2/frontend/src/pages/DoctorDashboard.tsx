@@ -162,15 +162,21 @@ const DoctorDashboard = () => {
                 let completed = false;
                 const analysisId = data.analysisId;
 
+                console.log(`📡 Analysis accepted. ID: ${analysisId}. Starting polling...`);
+
                 while (!completed) {
                     await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
                     const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/module1/status/${analysisId}`;
+                    console.log(`⏱️ Polling analysis status for ${analysisId}...`);
+
                     const statusRes = await fetch(statusUrl, {
                         headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
                     });
 
                     if (statusRes.ok) {
                         const statusData = await statusRes.json();
+                        console.log(`📊 Status: ${statusData.status}`);
+
                         if (statusData.status === 'completed') {
                             completed = true;
                             const botMsg: Message = {
@@ -265,15 +271,21 @@ const DoctorDashboard = () => {
                 let completed = false;
                 const analysisId = data.analysisId;
 
+                console.log(`🎤 Audio Analysis accepted. ID: ${analysisId}. Starting polling...`);
+
                 while (!completed) {
                     await new Promise(r => setTimeout(r, 5000));
                     const statusUrl = `${getApiBase()}${API_ENDPOINTS.AI}/module1/status/${analysisId}`;
+                    console.log(`⏱️ Polling audio status for ${analysisId}...`);
+
                     const statusRes = await fetch(statusUrl, {
                         headers: { 'Authorization': 'Bearer clinical-access-token-2026', 'bypass-tunnel-reminder': 'true' }
                     });
 
                     if (statusRes.ok) {
                         const statusData = await statusRes.json();
+                        console.log(`📊 Status: ${statusData.status}`);
+
                         if (statusData.status === 'completed') {
                             completed = true;
                             const botMsg: Message = {
