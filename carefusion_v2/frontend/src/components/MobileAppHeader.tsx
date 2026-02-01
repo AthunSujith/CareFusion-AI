@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, User, ShieldCheck } from 'lucide-react';
+import { User, ShieldCheck } from 'lucide-react';
 import { isStandalone } from '../utils/pwa';
 
 interface MobileAppHeaderProps {
