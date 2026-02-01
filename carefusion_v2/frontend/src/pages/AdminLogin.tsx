@@ -23,6 +23,9 @@ const AdminLogin = () => {
 
             const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/auth/login`, {
                 method: 'POST',
+                headers: {
+                    'bypass-tunnel-reminder': 'true'
+                },
                 body: formData,
             });
 

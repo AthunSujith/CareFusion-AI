@@ -69,7 +69,8 @@ const AdminDashboard = () => {
             const type = subTab === 'users' ? 'users' : 'doctors';
             const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/queue/${type}`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'bypass-tunnel-reminder': 'true'
                 }
             });
             if (response.ok) {
@@ -85,7 +86,10 @@ const AdminDashboard = () => {
         try {
             const token = localStorage.getItem('admin_token');
             const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/queue/item/${id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'bypass-tunnel-reminder': 'true'
+                }
             });
             if (response.ok) {
                 const data = await response.json();
@@ -104,7 +108,8 @@ const AdminDashboard = () => {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'bypass-tunnel-reminder': 'true'
                 },
                 body: JSON.stringify({ doc_id: docId, target_id: targetId })
             });
@@ -135,7 +140,8 @@ const AdminDashboard = () => {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'bypass-tunnel-reminder': 'true'
                 },
                 body: JSON.stringify({
                     target_id: targetId,
