@@ -109,9 +109,9 @@ def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = No
     import requests
     try:
         # Check server
-        requests.get("http://localhost:11434/api/tags", timeout=1)
+        requests.get("http://127.0.0.1:11434/api/tags", timeout=5)
         # Check models
-        models_resp = requests.get("http://localhost:11434/api/tags").json()
+        models_resp = requests.get("http://127.0.0.1:11434/api/tags").json()
         downloaded_models = [m['name'] for m in models_resp.get('models', [])]
         
         required = [DEFAULT_LLM_MODEL, FINAL_LLM_MODEL, "bge-m3:latest"]

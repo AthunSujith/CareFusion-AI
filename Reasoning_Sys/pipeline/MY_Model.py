@@ -62,10 +62,10 @@ def get_chat_model(
     import requests
     try:
         # Quick check if Ollama is responsive
-        requests.get("http://localhost:11434/api/tags", timeout=1)
+        requests.get("http://127.0.0.1:11434/api/tags", timeout=5)
     except Exception:
         raise RuntimeError(
-            "Ollama server is not running on http://localhost:11434. "
+            "Ollama server is not running on http://127.0.0.1:11434. "
             "Please ensure Ollama is installed and the service is started (run 'ollama serve')."
         )
 

@@ -63,8 +63,9 @@ def run_script_sync(python_path: str, script_path: str, args: list) -> str:
             cmd, capture_output=True, text=True, encoding='utf-8', cwd=cwd, timeout=1200
         )
         if result.returncode != 0:
-            print(f"Error running script {script_path}: {result.stderr}")
-            raise Exception(f"Script failed: {result.stderr}")
+            error_msg = result.stderr if result.stderr.strip() else result.stdout
+            print(f"Error running script {script_path}: {error_msg}")
+            raise Exception(f"Script failed: {error_msg}")
         return result.stdout
     except subprocess.TimeoutExpired:
         from fastapi import HTTPException
