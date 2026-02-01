@@ -260,7 +260,7 @@ def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = No
             summarized_context = "No relevant medical documents found."
         else:
             # OPTIMIZATION: Drastically limit context for speed
-            MAX_RELEVANT_CHARS = 5000 
+            MAX_RELEVANT_CHARS = 3500 
             if len(full_context) > MAX_RELEVANT_CHARS:
                 print(f"Limiting context from {len(full_context)} to {MAX_RELEVANT_CHARS} chars.")
                 full_context = full_context[:MAX_RELEVANT_CHARS]
@@ -268,7 +268,7 @@ def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = No
             print("Full context length (chars):", len(full_context))
             
             # Skip summarization if context is already small
-            if len(full_context) < 2000:
+            if len(full_context) < 1500:
                 print("Context small enough; skipping summarization.")
                 summarized_context = full_context
             else:

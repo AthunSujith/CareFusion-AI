@@ -56,16 +56,22 @@ def run_script_sync(python_path: str, script_path: str, args: list) -> str:
     cmd = [python_path, script_path] + args
     cwd = os.path.dirname(script_path)
     try:
-        # Increased timeout to 800s for heavy LLM reasoning
+        # Increased timeout to 1200s (20 mins) for heavy LLM reasoning
         result = subprocess.run(
-            cmd, capture_output=True, text=True, encoding='utf-8', cwd=cwd, timeout=800
+            cmd, capture_output=True, text=True, encoding='utf-8', cwd=cwd, timeout=1200
         )
         if result.returncode != 0:
             print(f"Error running script {script_path}: {result.stderr}")
             raise Exception(f"Script failed: {result.stderr}")
         return result.stdout
     except subprocess.TimeoutExpired:
-        raise Exception(f"Clinical Engine timed out after 800 seconds. The audio file might be too long or system resources are reaching capacity.")
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=504, 
+            detail="The clinical reasoning engine is taking longer than expected (1200s limit). "
+                   "This can happen with long audio files or complex medical contexts. "
+                   "Please try again or use text-only input for faster results."
+        )
     except Exception as e:
         raise Exception(f"Subprocess failed: {str(e)}")
 

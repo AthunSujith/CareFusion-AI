@@ -11,9 +11,9 @@ def load_whisper_model(size: str):
 
 def audio_text(
     audio_path: str,
-    size: str = "base",      # or "tiny", "base", "small", "large"
-    language: Optional[str] = None,
-    fp16: bool = False
+    size: str = "tiny",      # Changed to tiny for 5x speed boost
+    language: Optional[str] = "en",
+    fp16: bool = True       # Enabled FP16 for speed
 ) -> str:
     model = load_whisper_model(size)
 
