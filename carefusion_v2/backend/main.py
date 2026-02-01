@@ -31,7 +31,7 @@ async def add_process_time_header(request: Request, call_next):
             headers={
                 "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
                 "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type, bypass-tunnel-reminder, *",
                 "Access-Control-Allow-Credentials": "true",
             }
         )
