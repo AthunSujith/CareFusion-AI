@@ -20,7 +20,7 @@ export const getApiBase = () => {
     let storedTunnel = getStoredTunnel();
 
     // AUTO-MIGRATE: If stored tunnel is old/stale, clear it to use the new DEFAULT_TUNNEL
-    if (storedTunnel && (storedTunnel.includes('v2-bridge') || storedTunnel.includes('doctor-bridge') || storedTunnel.includes('v2-dev'))) {
+    if (storedTunnel && (storedTunnel.includes('v2-bridge') || storedTunnel.includes('doctor-bridge') || storedTunnel.includes('v2-dev') || storedTunnel.includes('clinical-bridge-2026'))) {
         localStorage.removeItem('carefusion_tunnel_url');
         storedTunnel = null;
     }
