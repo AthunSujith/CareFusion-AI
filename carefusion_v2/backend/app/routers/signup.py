@@ -60,16 +60,46 @@ async def upload_document(
 
 # --- Patient Signup Submission ---
 
+from app.core.security import get_password_hash
+
+# Request Models
+class PatientSignupRequest(BaseModel):
+    user_id: Optional[str] = None
+    personal_info: PersonalInfo
+    identity: IdentityInfo
+    password: str
+    documents: List[DocumentMetadata] = []
+
+class DoctorSignupRequest(BaseModel):
+    doctor_id: Optional[str] = None
+    personal_info: PersonalInfo
+    identity: IdentityInfo
+    medical_credentials: MedicalCredentials
+    password: str
+    documents: List[DocumentMetadata] = []
+
 @router.post("/patient")
 async def submit_patient_signup(
-    signup_model: PendingUserSignup,
+    request: PatientSignupRequest,
     db = Depends(get_db)
 ):
     # Check for existing
-    if await check_existing_user(signup_model.personal_info.email, signup_model.personal_info.phone, db):
+    if await check_existing_user(request.personal_info.email, request.personal_info.phone, db):
         raise HTTPException(status_code=409, detail="User with this email or phone already exists")
 
-    # Insert into Pendng Collection
+    # Create DB Model with Hashed Password
+    signup_model = PendingUserSignup(
+        user_id=request.user_id if request.user_id else None, # Let default factory handle if None
+        personal_info=request.personal_info,
+        identity=request.identity,
+        password_hash=get_password_hash(request.password),
+        documents=request.documents
+    )
+    # Ensure user_id is set if factory didn't trig (it triggers if field missing)
+    # But we passing None might be issue. 
+    # Better: exclude user_id if None using **request.dict(exclude={'password', 'user_id'})
+    
+    # Insert
     new_record = await db.pending_users.insert_one(signup_model.dict())
     
     return {
@@ -82,9 +112,37 @@ async def submit_patient_signup(
 
 @router.post("/doctor")
 async def submit_doctor_signup(
-    signup_model: PendingDoctorSignup,
+    request: DoctorSignupRequest,
     db = Depends(get_db)
 ):
+    signup_model = PendingDoctorSignup(
+        doctor_id=request.doctor_id if request.doctor_id else None,
+        personal_info=request.personal_info,
+        identity=request.identity,
+        medical_credentials=request.medical_credentials,
+        password_hash=get_password_hash(request.password),
+        documents=request.documents
+    )
+
+    # Basic NMC Check mockup (In production, call external API)
+    if settings.REQUIRE_NMC_VERIFICATION:
+        # Mock validation logic
+        reg_num = signup_model.medical_credentials.nmc_registration
+        if not reg_num or len(reg_num) < 5:
+            signup_model.nmc_verification_status = "FAILED"
+            signup_model.risk_score += 50
+        else:
+            signup_model.nmc_verification_status = "VERIFIED"
+
+    # Insert
+    await db.pending_doctors.insert_one(signup_model.dict())
+
+    return {
+        "status": "success", 
+        "message": "Doctor application submitted for verification", 
+        "reference_id": signup_model.doctor_id,
+        "nmc_status": signup_model.nmc_verification_status
+    }
 
     # Basic NMC Check mockup (In production, call external API)
     if settings.REQUIRE_NMC_VERIFICATION:

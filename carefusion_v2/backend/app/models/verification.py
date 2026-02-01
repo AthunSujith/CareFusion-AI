@@ -95,6 +95,7 @@ class MedicalCredentials(BaseModel):
 # Pending User Signup
 class PendingUserSignup(BaseModel):
     user_id: str = Field(default_factory=lambda: f"PENDING-USER-{datetime.now().strftime('%Y%m%d%H%M%S')}")
+    password_hash: str  # Store hashed password
     status: UserStatus = UserStatus.PENDING_USER
     personal_info: PersonalInfo
     identity: IdentityInfo
@@ -111,6 +112,7 @@ class PendingUserSignup(BaseModel):
 # Pending Doctor Signup
 class PendingDoctorSignup(BaseModel):
     doctor_id: str = Field(default_factory=lambda: f"PENDING-DOC-{datetime.now().strftime('%Y%m%d%H%M%S')}")
+    password_hash: str  # Store hashed password
     status: UserStatus = UserStatus.PENDING_DOCTOR
     personal_info: PersonalInfo
     identity: IdentityInfo

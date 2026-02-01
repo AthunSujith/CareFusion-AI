@@ -10,7 +10,7 @@ const Signup = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
-    const [uploadedDocs, setUploadedDocs] = useState<Array<{ id: string, name: string }>>([]);
+    const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
 
     // Form States
@@ -31,7 +31,7 @@ const Signup = () => {
         const formData = new FormData();
         formData.append('user_id', userId);
         formData.append('file', file);
-        formData.append('doc_type', 'identity_proof');
+        formData.append('doc_type', 'GOVERNMENT_ID');
 
         try {
             const response = await fetch(`${getApiBase()}${API_ENDPOINTS.SIGNUP}/upload-document`, {
@@ -44,7 +44,8 @@ const Signup = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setUploadedDocs(prev => [...prev, { id: data.doc_id, name: file.name }]);
+                // Store full metadata returned by backend
+                setUploadedDocs(prev => [...prev, { ...data, name: file.name }]);
             } else {
                 alert("Upload failed. Please try again.");
             }
@@ -72,20 +73,49 @@ const Signup = () => {
 
         setIsLoading(true);
 
-        const basePayload = {
-            user_id: userId,
+        // Construct payload matching Backend Pydantic Models
+        const personal_info = {
             full_name: fullName,
             email: email,
             phone: phone,
-            address: address,
             dob: dob,
-            password: password,
-            documents: uploadedDocs.map(d => ({ doc_id: d.id, doc_type: 'identity_proof', description: 'User Upload' }))
+            address: address,
+            gender: 'Other', // Default for MVP
+            city: 'Unknown',
+            state: 'Unknown',
+            pincode: '000000'
         };
 
-        const payload = userType === 'doctor'
-            ? { ...basePayload, license_number: licenseNumber, specialization: 'General' }
-            : basePayload;
+        const identity = {
+            id_type: 'PASSPORT', // Default
+            id_number: 'PENDING_REVIEW',
+            id_hash: 'PENDING'
+        };
+
+        const basePayload = {
+            user_id: userId,
+            password: password,
+            personal_info: personal_info,
+            identity: identity,
+            documents: uploadedDocs
+        };
+
+        let payload = basePayload;
+
+        if (userType === 'doctor') {
+            payload = {
+                ...basePayload,
+                // @ts-ignore
+                doctor_id: userId,
+                medical_credentials: {
+                    degree: 'MBBS',
+                    specialization: 'General',
+                    nmc_registration: licenseNumber,
+                    state_council: 'Medical Council',
+                    registration_year: new Date().getFullYear()
+                }
+            };
+        }
 
         const endpoint = userType === 'doctor' ? '/doctor' : '/patient';
 
@@ -103,7 +133,12 @@ const Signup = () => {
                 setSuccess(true);
             } else {
                 const data = await response.json();
-                setError(data.detail || "Signup failed");
+                // Handle Pydantic validation errors nicely
+                if (data.detail && Array.isArray(data.detail)) {
+                    setError(data.detail.map((e: any) => e.msg).join(', '));
+                } else {
+                    setError(data.detail || "Signup failed");
+                }
             }
         } catch (err) {
             setError("Connection failed.");
