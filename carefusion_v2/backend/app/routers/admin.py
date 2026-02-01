@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 import jwt
 import logging
+from app.services.notification import NotificationService
 
 router = APIRouter()
 settings = get_settings()
@@ -219,6 +220,22 @@ async def admin_decision(decision: AdminDecision, db = Depends(get_db), admin: s
             "rejection_reason": decision.reason
         }
         await collection.update_one({"_id": record["_id"]}, {"$set": update_data})
+        
+        # Send Notifications
+        user_email = record["personal_info"]["email"]
+        user_name = record["personal_info"]["full_name"]
+        
+        if new_status in [UserStatus.VERIFIED_USER, UserStatus.VERIFIED_DOCTOR]:
+            # Generate Activation Token (Mocking a JWT link for now)
+            # In production, this would be a real frontend URL with a token
+            activation_token = create_access_token({"sub": decision.target_id, "type": "activation"}, timedelta(hours=24))
+            activation_link = f"http://localhost:3000/activate?token={activation_token}"
+            
+            # Run async background task ideally, but await for simplicity here
+            await NotificationService.send_activation_email(user_email, activation_link, user_name)
+            
+        elif new_status == UserStatus.REJECTED:
+             await NotificationService.send_rejection_notify(user_email, decision.reason, user_name)
         
         # Log Audit
         await _log_audit(
