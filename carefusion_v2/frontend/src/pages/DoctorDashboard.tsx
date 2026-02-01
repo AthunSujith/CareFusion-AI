@@ -140,6 +140,12 @@ const DoctorDashboard = () => {
                 },
                 body: JSON.stringify({ userId: CURRENT_PATIENT_ID, textInput: inputText })
             });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Reasoning engine response failed' }));
+                throw new Error(errorData.detail || `Server error ${response.status}`);
+            }
+
             const data = await response.json();
 
             const botMsg: Message = {
@@ -206,6 +212,12 @@ const DoctorDashboard = () => {
                 },
                 body: formData
             });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Audio engine response failed' }));
+                throw new Error(errorData.detail || `Server error ${response.status}`);
+            }
+
             const data = await response.json();
 
             const botMsg: Message = {
@@ -235,20 +247,42 @@ const DoctorDashboard = () => {
         formData.append('medical_image', file);
 
         try {
-            const url = `${getApiBase()}${API_ENDPOINTS.AI}/module2/scan`;
+            // Pre-flight check: Ensure the tunnel is actually reachable and not showing a reminder
+            const baseUrl = getApiBase();
+            const healthUrl = `${baseUrl}/api/health`;
+
+            try {
+                const healthRes = await fetch(healthUrl, { headers: { 'bypass-tunnel-reminder': 'true' } });
+                if (!healthRes.ok) throw new Error(`Handshake status ${healthRes.status}`);
+            } catch (e) {
+                console.warn("Handshake warning", e);
+                // We proceed anyway, but this helps debug
+            }
+
+            const url = `${baseUrl}${API_ENDPOINTS.AI}/module2/scan`;
+            console.log('📡 Initiating Radiology Scan:', url);
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer clinical-access-token-2026',
-                    'bypass-tunnel-reminder': 'true'
+                    'bypass-tunnel-reminder': 'true',
+                    'Accept': 'application/json'
                 },
                 body: formData
             });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Network handshake failed' }));
+                throw new Error(errorData.detail || `Server error ${response.status}`);
+            }
+
             const data = await response.json();
             setAnalysisResult(data);
         } catch (error: any) {
-            console.error("Upload failed", error);
-            alert(`❌ Imaging Scan Error: ${error.message || 'Failed to transmit payload to the Radiology Processor.'}`);
+            console.error("Radiology Upload Error:", error);
+            const isNetworkError = error.name === 'TypeError' || error.message.includes('fetch');
+            alert(`❌ Imaging Scan Error: ${isNetworkError ? 'Network Connectivity Issue. Ensure the Clinical Bridge is open and verified in another tab.' : error.message}`);
         } finally {
             setIsUploading(false);
         }
@@ -272,7 +306,9 @@ const DoctorDashboard = () => {
         formData.append('vcf_file', vcfFile);
 
         try {
-            const url = `${getApiBase()}${API_ENDPOINTS.AI}/module3/dna`;
+            const baseUrl = getApiBase();
+            const url = `${baseUrl}${API_ENDPOINTS.AI}/module3/dna`;
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -281,11 +317,17 @@ const DoctorDashboard = () => {
                 },
                 body: formData
             });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Genomic node unavailable' }));
+                throw new Error(errorData.detail || `Server error ${response.status}`);
+            }
+
             const data = await response.json();
             setDnaResult(data);
-        } catch (error) {
+        } catch (error: any) {
             console.error("DNA Analysis failed", error);
-            alert("❌ Genomic Sequencing Error: Data node handshake failed.");
+            alert(`❌ Genomic Sequencing Error: ${error.message || 'Data node handshake failed.'}`);
         } finally {
             setIsDnaProcessing(false);
         }
@@ -398,7 +440,8 @@ const DoctorDashboard = () => {
         }
 
         try {
-            const url = `${getApiBase()}${API_ENDPOINTS.AI}/chat/general`;
+            const baseUrl = getApiBase();
+            const url = `${baseUrl}${API_ENDPOINTS.AI}/chat/general`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -407,18 +450,23 @@ const DoctorDashboard = () => {
                 },
                 body: formData
             });
-            const data = await response.json();
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'MedGemma Node timed out' }));
+                throw new Error(errorData.detail || `Server error ${response.status}`);
+            }
+
+            const data = await response.json();
             const botMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 type: 'bot',
-                text: data.result?.result?.ai_response || "AI reasoning complete. Deep clinical patterns identified."
+                text: data.result?.ai_response || data.result?.result?.ai_response || "AI reasoning complete. Deep clinical patterns identified."
             };
             setChatMessages(prev => [...prev, botMsg]);
             setChatPdf(null);
-        } catch (error) {
+        } catch (error: any) {
             console.error("General AI Chat failed", error);
-            alert("❌ AI Chat Error: MedGemma Node handshake failure.");
+            alert(`❌ AI Chat Error: ${error.message || 'MedGemma Node handshake failure.'}`);
         } finally {
             setIsChatThinking(false);
         }
