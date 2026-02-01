@@ -291,7 +291,8 @@ def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = No
         final_text = ""
         try:
             with Timer("Final Clinical Synthesis (MedGemma)"):
-                final_llm = get_chat_model(model=FINAL_LLM_MODEL, temperature=0.4, timeout=120)
+                # Synchronized with global timeout (1200s)
+                final_llm = get_chat_model(model=FINAL_LLM_MODEL, temperature=0.4, timeout=1200)
                 final_chain = final_prompt_template | final_llm
                 
                 final_raw = final_chain.invoke({
