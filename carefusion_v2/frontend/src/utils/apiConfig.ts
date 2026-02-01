@@ -6,7 +6,7 @@ const getStoredTunnel = () => {
     }
 };
 
-const DEFAULT_TUNNEL = 'https://clinical-vault-bridge-2026.loca.lt'; // Fallback
+const DEFAULT_TUNNEL = 'https://clinical-bridge-2026.loca.lt'; // Fallback
 
 export const getApiBase = () => {
     // 1. Priority: Environment Variable (Vite/Next)
@@ -47,5 +47,7 @@ export const setApiBase = (url: string) => {
 
 export const API_ENDPOINTS = {
     AI: '/api/v2/ai',
-    PATIENTS: '/api/v2/patients'
+    PATIENTS: '/api/v2/patients',
+    ADMIN: '/api/v2/admin',
+    SIGNUP: '/api/v2/signup'
 };

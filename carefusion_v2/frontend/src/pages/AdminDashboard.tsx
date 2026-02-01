@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getApiBase, API_ENDPOINTS } from '../utils/apiConfig';
 import { Shield, Users, FileText, Check, X, Activity, Lock, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -66,7 +67,7 @@ const AdminDashboard = () => {
         try {
             const token = localStorage.getItem('admin_token');
             const type = subTab === 'users' ? 'users' : 'doctors';
-            const response = await fetch(`http://localhost:8000/api/v2/admin/queue/${type}`, {
+            const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/queue/${type}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -83,7 +84,7 @@ const AdminDashboard = () => {
     const fetchDetails = async (id: string) => {
         try {
             const token = localStorage.getItem('admin_token');
-            const response = await fetch(`http://localhost:8000/api/v2/admin/queue/item/${id}`, {
+            const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/queue/item/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
@@ -99,7 +100,7 @@ const AdminDashboard = () => {
     const handleViewDocument = async (docId: string, targetId: string, filename: string) => {
         try {
             const token = localStorage.getItem('admin_token');
-            const response = await fetch('http://localhost:8000/api/v2/admin/document/view', {
+            const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/document/view`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -130,7 +131,7 @@ const AdminDashboard = () => {
             const token = localStorage.getItem('admin_token');
             const targetId = selectedItem.user_id || selectedItem.doctor_id;
 
-            const response = await fetch('http://localhost:8000/api/v2/admin/decision', {
+            const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/decision`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

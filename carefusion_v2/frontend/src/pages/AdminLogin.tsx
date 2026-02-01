@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getApiBase, API_ENDPOINTS } from '../utils/apiConfig';
 import { Shield, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -20,7 +21,7 @@ const AdminLogin = () => {
             formData.append('username', username);
             formData.append('password', password);
 
-            const response = await fetch('http://localhost:8000/api/v2/admin/auth/login', {
+            const response = await fetch(`${getApiBase()}${API_ENDPOINTS.ADMIN}/auth/login`, {
                 method: 'POST',
                 body: formData,
             });
