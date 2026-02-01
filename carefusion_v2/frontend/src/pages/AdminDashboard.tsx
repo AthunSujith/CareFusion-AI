@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Users, FileText, Check, X, Activity, Lock, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,7 +47,7 @@ const AdminDashboard = () => {
     const [subTab, setSubTab] = useState('users'); // 'users' or 'doctors'
     const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
     const [selectedItem, setSelectedItem] = useState<DetailItem | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    // isLoading removed
     const [viewingDoc, setViewingDoc] = useState<ViewingDoc | null>(null);
     const [docUrl, setDocUrl] = useState<string | null>(null);
     const [reason, setReason] = useState('');
@@ -63,7 +63,6 @@ const AdminDashboard = () => {
     }, [subTab]); // Refetch when switching subtab
 
     const fetchQueue = async () => {
-        setIsLoading(true);
         try {
             const token = localStorage.getItem('admin_token');
             const type = subTab === 'users' ? 'users' : 'doctors';
@@ -78,8 +77,6 @@ const AdminDashboard = () => {
             }
         } catch (error) {
             console.error("Failed to fetch queue", error);
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -283,8 +280,8 @@ const AdminDashboard = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.risk_score > 60 ? 'bg-red-900/50 text-red-400 border border-red-500/30' :
-                                                        item.risk_score > 30 ? 'bg-amber-900/50 text-amber-400 border border-amber-500/30' :
-                                                            'bg-emerald-900/50 text-emerald-400 border border-emerald-500/30'
+                                                    item.risk_score > 30 ? 'bg-amber-900/50 text-amber-400 border border-amber-500/30' :
+                                                        'bg-emerald-900/50 text-emerald-400 border border-emerald-500/30'
                                                     }`}>
                                                     {item.risk_score} / 100
                                                 </span>
