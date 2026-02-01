@@ -61,7 +61,7 @@ def dna_Analysis(USER_VCF, clinvar_db_path=None):
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=2, ensure_ascii=False)
             
-        print(f"Analysis complete. Found {len(findings)} pathogenic variants.", file=sys.stderr)
+        print(f"Analysis complete. Found {len(pathogenic)} pathogenic variants.", file=sys.stderr)
         print(f"Results saved to {OUTPUT_FILE}", file=sys.stderr)
         return output
     
