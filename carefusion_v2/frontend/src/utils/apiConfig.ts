@@ -6,7 +6,7 @@ const getStoredTunnel = () => {
     }
 };
 
-const DEFAULT_TUNNEL = 'https://breezy-cows-start.loca.lt'; // Fallback
+const DEFAULT_TUNNEL = 'https://polite-candies-push.loca.lt'; // Fallback
 
 export const getApiBase = () => {
     // 1. Priority: Environment Variable (Vite/Next)
