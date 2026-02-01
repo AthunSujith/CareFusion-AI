@@ -3,13 +3,14 @@ from app.core.database import get_db
 from app.models.verification import (
     PendingUserSignup, PendingDoctorSignup, UserStatus, 
     PersonalInfo, IdentityInfo, MedicalCredentials, 
-    DocumentType, MedicalDegree, IDType
+    DocumentType, MedicalDegree, IDType, DocumentMetadata
 )
 from app.services.document_storage import LocalDocumentStorage, validate_file_type, validate_file_size
 from app.core.config import get_settings
 from datetime import datetime
 import json
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
+from typing import List, Optional
 
 router = APIRouter()
 settings = get_settings()
