@@ -14,10 +14,26 @@ self.addEventListener('install', (event) => {
     );
 });
 
+// Network First, falling back to cache
 self.addEventListener('fetch', (event) => {
+    // Only intercept GET requests
+    if (event.request.method !== 'GET') return;
+
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
-        })
+        fetch(event.request)
+            .then((response) => {
+                // If it's a valid response, clone it and save to cache
+                if (response.status === 200) {
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone);
+                    });
+                }
+                return response;
+            })
+            .catch(() => {
+                // If network fails, try the cache
+                return caches.match(event.request);
+            })
     );
 });
