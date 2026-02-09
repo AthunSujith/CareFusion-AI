@@ -8,7 +8,7 @@ from langchain_community.embeddings import OllamaEmbeddings
 # CONFIG — MUST MATCH EXISTING STORE (DO NOT CHANGE)
 # -------------------------------------------------
 PERSIST_DIR = r"C:\CareFusion-AI\vector of external\chroma_db_bge_m3"
-COLLECTION_NAME = "external_knowledge_bge_m3"
+COLLECTION_NAME = "daily_knowledge"
 EMBED_MODEL = "bge-m3"
 
 NEW_DOCS_PATH = Path(r"C:\CareFusion-AI\External_knowledger")

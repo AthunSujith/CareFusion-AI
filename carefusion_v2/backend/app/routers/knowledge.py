@@ -16,7 +16,7 @@ logger = logging.getLogger("knowledge_router")
 
 # --- CONFIG ---
 PERSIST_DIR = r"C:\CareFusion-AI\vector of external\chroma_db_bge_m3"
-COLLECTION_NAME = "Daily Knowledge"
+COLLECTION_NAME = "daily_knowledge"
 EMBED_MODEL = "bge-m3"
 UPLOAD_DIR = r"C:\CareFusion-AI\External_knowledger"
 
