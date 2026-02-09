@@ -24,7 +24,9 @@ import {
     X as XIcon,
     FileSearch,
     Folder,
-    Plus
+    Plus,
+    Info,
+    Brain
 } from 'lucide-react';
 
 
@@ -50,11 +52,18 @@ const PatientDashboard = () => {
 
     const PATIENT_ID = 'PAT-001-X'; // Unified patient ID for this demo
     const [showBridgeSettings, setShowBridgeSettings] = useState(false);
+    const [showSecurityDetails, setShowSecurityDetails] = useState(false);
     const [newTunnelUrl, setNewTunnelUrl] = useState('');
+    const [lastUpload, setLastUpload] = useState<any>(null); // For upload feedback
 
     // AI Chat State
     const [chatMessages, setChatMessages] = useState<any[]>([
-        { id: '1', type: 'bot', text: "Hello. I am MedGemma 1.5, your specialized clinical AI. You can chat with me or upload medical documents for deep analysis." }
+        {
+            id: '1',
+            type: 'bot',
+            text: "I’m MedGemma, an AI assistant that helps explain medical information and identify questions to discuss with your doctor.",
+            safety: { confidence: 'High', disclaimer: 'This is not a diagnosis.' }
+        }
     ]);
     const [chatInput, setChatInput] = useState('');
     const [isChatThinking, setIsChatThinking] = useState(false);
@@ -194,6 +203,21 @@ const PatientDashboard = () => {
     const handleSendGeneralChat = async () => {
         if (!chatInput.trim() && !chatPdf) return;
 
+        // Refusal Logic for Sensitive Topics
+        const lowerInput = chatInput.toLowerCase();
+        if (lowerInput.includes('cancer') || lowerInput.includes('dying') || lowerInput.includes('kill myself')) {
+            const userMsg = { id: Date.now().toString(), type: 'user', text: chatInput };
+            const botMsg = {
+                id: (Date.now() + 1).toString(),
+                type: 'bot',
+                text: "I can’t determine that. I recommend discussing this with a doctor.",
+                safety: { confidence: 'High', disclaimer: 'Topic requires professional consultation.' }
+            };
+            setChatMessages(prev => [...prev, userMsg, botMsg]);
+            setChatInput('');
+            return;
+        }
+
         const userMsg = { id: Date.now().toString(), type: 'user', text: chatInput || (chatPdf ? `📄 [Analyzing Document: ${chatPdf.name}]` : "") };
         setChatMessages(prev => [...prev, userMsg]);
         setChatInput('');
@@ -237,7 +261,8 @@ const PatientDashboard = () => {
                             setChatMessages(prev => [...prev, {
                                 id: Date.now().toString(),
                                 type: 'bot',
-                                text: statusData.result?.ai_response || "Analysis complete."
+                                text: statusData.result?.ai_response || "Analysis complete.",
+                                safety: { confidence: 'Moderate', disclaimer: 'Not a diagnosis. Consult a physician.' }
                             }]);
                             fetchPatientData(); // Refresh history
                             fetchCategories();  // Refresh folders
@@ -251,7 +276,8 @@ const PatientDashboard = () => {
                 setChatMessages(prev => [...prev, {
                     id: Date.now().toString(),
                     type: 'bot',
-                    text: data.result?.ai_response || "Analysis complete."
+                    text: data.result?.ai_response || "Analysis complete.",
+                    safety: { confidence: 'Moderate', disclaimer: 'Not a diagnosis. Consult a physician.' }
                 }]);
             }
         } catch (error: any) {
@@ -278,12 +304,30 @@ const PatientDashboard = () => {
                     <Activity className="text-black w-7 h-7" />
                 </button>
 
-                <nav className="flex-1 space-y-10 z-10">
-                    <NavIcon icon={<Activity />} active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} label="Home" />
-                    <NavIcon icon={<HistoryIcon />} active={activeTab === 'history'} onClick={() => setActiveTab('history')} label="History" />
-                    <NavIcon icon={<FileText />} active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} label="Reports" />
-                    <NavIcon icon={<MessagesSquare />} active={activeTab === 'aichat'} onClick={() => setActiveTab('aichat')} label="AI Chat" />
-                    <NavIcon icon={<Settings />} active={activeTab === 'settings'} onClick={() => setShowBridgeSettings(true)} label="Settings" />
+                <nav className="flex-1 flex flex-col gap-6 w-full z-10 overflow-y-auto no-scrollbar py-2 items-center">
+
+                    {/* DATA GROUP */}
+                    <div className="flex flex-col items-center gap-4 w-full">
+                        <div className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 mt-2">Data</div>
+                        <NavIcon icon={<Activity size={22} />} active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} label="Overview" />
+                        <NavIcon icon={<HistoryIcon size={22} />} active={activeTab === 'history'} onClick={() => setActiveTab('history')} label="Timeline" />
+                        <NavIcon icon={<FileText size={22} />} active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} label="Vault" />
+                    </div>
+
+                    {/* AI GROUP */}
+                    <div className="flex flex-col items-center gap-4 w-full">
+                        <div className="h-[1px] w-8 bg-white/10" />
+                        <div className="text-[8px] font-black uppercase tracking-[0.3em] text-[#E0C58F]/60">AI</div>
+                        <NavIcon icon={<MessagesSquare size={22} />} active={activeTab === 'aichat'} onClick={() => setActiveTab('aichat')} label="MedGemma" />
+                    </div>
+
+                    {/* SECURITY GROUP */}
+                    <div className="flex flex-col items-center gap-4 w-full">
+                        <div className="h-[1px] w-8 bg-white/10" />
+                        <div className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20">Sec</div>
+                        <NavIcon icon={<Settings size={22} />} active={showBridgeSettings} onClick={() => setShowBridgeSettings(true)} label="Bridge" />
+                    </div>
+
                 </nav>
 
                 <div className="mt-auto space-y-8 z-10">
@@ -297,7 +341,7 @@ const PatientDashboard = () => {
             </aside>
 
             {/* Main Content Area */}
-            <main className={`flex-1 overflow-y-auto custom-scrollbar relative ${isStandalone() ? 'pt-0 pb-24' : ''}`}>
+            <main className={`flex-1 overflow-y-auto custom-scrollbar relative pb-24 lg:pb-16 ${isStandalone() ? 'pt-0 pb-36' : ''}`}>
                 <MobileAppHeader title="CareFusion Patient" onSettingsClick={() => setShowBridgeSettings(true)} />
 
                 {/* Global Luxury Background Image */}
@@ -313,10 +357,13 @@ const PatientDashboard = () => {
                     {/* Header - High Legibility */}
                     <header className="flex flex-col md:flex-row md:items-end justify-between gap-10">
                         <div className="space-y-4">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#D9CBC2]/20 border border-[#D9CBC2] rounded-lg">
-                                <ShieldCheck className="w-4 h-4 text-[#3C507D]" />
-                                <span className="text-[12px] font-bold text-black uppercase tracking-wide">Environment Secure</span>
-                            </div>
+                            <button
+                                onClick={() => setShowSecurityDetails(true)}
+                                className="inline-flex items-center gap-2 px-3 py-1 bg-[#D9CBC2]/20 border border-[#D9CBC2] rounded-lg hover:bg-[#D9CBC2]/40 transition-colors cursor-pointer group"
+                            >
+                                <ShieldCheck className="w-4 h-4 text-[#3C507D] group-hover:text-[#112250] transition-colors" />
+                                <span className="text-[12px] font-bold text-black uppercase tracking-wide group-hover:text-[#112250] transition-colors">Environment Secure</span>
+                            </button>
                             <div className="space-y-1">
                                 <h1 className="text-4xl md:text-5xl font-black text-black tracking-tight">
                                     {activeTab === 'overview' ? 'Patient Portal' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
@@ -327,7 +374,11 @@ const PatientDashboard = () => {
                         </div>
 
                         <div className="flex flex-wrap gap-8 items-center md:pb-2">
-                            <HeaderStat label="Health Score" val="92%" />
+                            <HeaderStat
+                                label="Data Readiness Index"
+                                val="92%"
+                                tooltip="This score reflects how complete and structured your medical records are. It does NOT indicate your health condition or risk level."
+                            />
                             <HeaderStat label="Security" val="Level S" />
                             <HeaderStat label="Sync Status" val="READY" color="text-[#3C507D]" />
                         </div>
@@ -361,7 +412,7 @@ const PatientDashboard = () => {
                                                     </div>
                                                     <div className="space-y-3">
                                                         <h2 className="text-3xl font-black text-black">Secure Doctor Sync</h2>
-                                                        <p className="text-black/60 text-lg font-medium leading-relaxed">Activate your temporary handshake code to allow clinical data synchronization with your physician.</p>
+                                                        <p className="text-black/60 text-lg font-medium leading-relaxed">Share selected medical records with a doctor for a limited time.</p>
                                                     </div>
                                                 </div>
 
@@ -402,12 +453,28 @@ const PatientDashboard = () => {
                                                                         Expires in {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                                                                     </div>
                                                                 </div>
-                                                                <div className="pt-6">
+                                                                <div className="pt-6 space-y-4">
+                                                                    {/* Access Scope Panel */}
+                                                                    <div className="bg-[#112250]/5 p-5 rounded-2xl border border-[#D9CBC2] space-y-3">
+                                                                        <div className="flex justify-between items-center text-xs">
+                                                                            <span className="font-bold text-[#112250]/60 uppercase tracking-wider">Data Scope</span>
+                                                                            <span className="font-black text-[#112250] bg-white px-2 py-1 rounded border border-[#D9CBC2]">Full Record</span>
+                                                                        </div>
+                                                                        <div className="flex justify-between items-center text-xs">
+                                                                            <span className="font-bold text-[#112250]/60 uppercase tracking-wider">Access</span>
+                                                                            <span className="font-black text-[#112250]">Read-Only</span>
+                                                                        </div>
+                                                                        <div className="flex justify-between items-center text-xs">
+                                                                            <span className="font-bold text-[#112250]/60 uppercase tracking-wider">Duration</span>
+                                                                            <span className="font-black text-[#112250]">24 Hours</span>
+                                                                        </div>
+                                                                    </div>
+
                                                                     <button
                                                                         onClick={() => setAccessCode(null)}
-                                                                        className="w-full text-sm font-bold text-rose-600 hover:text-rose-700 underline underline-offset-4 text-center uppercase tracking-widest"
+                                                                        className="w-full py-4 bg-white border-2 border-rose-100 text-rose-600 rounded-xl font-black uppercase tracking-widest hover:bg-rose-50 hover:border-rose-200 transition-colors text-xs flex items-center justify-center gap-2 shadow-sm"
                                                                     >
-                                                                        Stop Sharing Now
+                                                                        <XIcon size={14} /> Revoke Access
                                                                     </button>
                                                                 </div>
                                                             </div>
@@ -423,8 +490,11 @@ const PatientDashboard = () => {
 
                                         {/* Condition Folders Navigation */}
                                         <section className="space-y-6">
-                                            <div className="flex items-center justify-between mb-2 px-2">
-                                                <h3 className="text-xs font-black text-black/40 uppercase tracking-[0.2em]">Medical Condition Folders</h3>
+                                            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 px-2">
+                                                <div>
+                                                    <h3 className="text-sm font-black text-black uppercase tracking-[0.2em] mb-2">Medical Condition Folders</h3>
+                                                    <p className="text-black/60 text-sm font-medium">Upload reports to help AI understand your medical history.</p>
+                                                </div>
                                                 <button
                                                     onClick={() => {
                                                         const name = prompt("Enter new medical condition / folder name:");
@@ -433,29 +503,58 @@ const PatientDashboard = () => {
                                                             setSelectedCategory(name);
                                                         }
                                                     }}
-                                                    className="flex items-center gap-2 text-[10px] font-black text-[#112250] hover:text-[#3C507D] transition-colors uppercase tracking-widest"
+                                                    className="flex items-center gap-2 text-[10px] font-black text-[#112250] hover:text-[#3C507D] transition-colors uppercase tracking-widest bg-white border border-[#D9CBC2] px-4 py-2 rounded-xl shadow-sm"
                                                 >
-                                                    <Plus size={14} /> New Folder
+                                                    <Plus size={14} /> New Condition
                                                 </button>
                                             </div>
-                                            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+
+                                            <div className="flex gap-6 overflow-x-auto pb-6 custom-scrollbar snap-x">
                                                 <button
                                                     onClick={() => setSelectedCategory('All')}
-                                                    className={`shrink-0 px-6 py-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${selectedCategory === 'All' ? 'bg-[#112250] text-[#E0C58F] border-[#112250] shadow-lg' : 'bg-white text-black border-[#D9CBC2] opacity-60 hover:opacity-100'}`}
+                                                    className={`shrink-0 snap-start min-w-[220px] p-6 rounded-[2rem] border-2 transition-all flex flex-col justify-between h-40 group ${selectedCategory === 'All' ? 'bg-[#112250] text-[#E0C58F] border-[#112250] shadow-xl scale-[1.02]' : 'bg-white text-black border-[#D9CBC2] hover:border-[#112250] hover:shadow-md'}`}
                                                 >
-                                                    <Activity size={18} />
-                                                    <span className="font-bold text-sm">All Records</span>
+                                                    <div className="flex justify-between items-start w-full">
+                                                        <div className={`p-3 rounded-2xl ${selectedCategory === 'All' ? 'bg-white/10' : 'bg-[#F5F0E9]'}`}>
+                                                            <Activity size={24} />
+                                                        </div>
+                                                        <span className={`text-2xl font-black ${selectedCategory === 'All' ? 'text-white' : 'text-[#3C507D]'}`}>{records.length}</span>
+                                                    </div>
+                                                    <div className="text-left space-y-1">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Master View</span>
+                                                        <h4 className="text-xl font-black">All Records</h4>
+                                                    </div>
                                                 </button>
-                                                {categories.map(cat => (
-                                                    <button
-                                                        key={cat}
-                                                        onClick={() => setSelectedCategory(cat)}
-                                                        className={`shrink-0 px-6 py-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${selectedCategory === cat ? 'bg-[#112250] text-[#E0C58F] border-[#112250] shadow-lg' : 'bg-white text-black border-[#D9CBC2] opacity-60 hover:opacity-100'}`}
-                                                    >
-                                                        <Folder size={18} />
-                                                        <span className="font-bold text-sm">{cat}</span>
-                                                    </button>
-                                                ))}
+
+                                                {categories.map(cat => {
+                                                    const catRecords = records.filter(r => r.category === cat);
+                                                    const count = catRecords.length;
+                                                    const lastUpdate = catRecords.length > 0
+                                                        ? new Date(Math.max(...catRecords.map(r => new Date(r.timestamp).getTime()))).toLocaleDateString()
+                                                        : "No Data";
+
+                                                    return (
+                                                        <button
+                                                            key={cat}
+                                                            onClick={() => setSelectedCategory(cat)}
+                                                            className={`shrink-0 snap-start min-w-[220px] p-6 rounded-[2rem] border-2 transition-all flex flex-col justify-between h-40 group ${selectedCategory === cat ? 'bg-[#112250] text-[#E0C58F] border-[#112250] shadow-xl scale-[1.02]' : 'bg-white text-black border-[#D9CBC2] hover:border-[#112250] hover:shadow-md'}`}
+                                                        >
+                                                            <div className="flex justify-between items-start w-full">
+                                                                <div className={`p-3 rounded-2xl ${selectedCategory === cat ? 'bg-white/10' : 'bg-[#F5F0E9]'}`}>
+                                                                    <Folder size={24} />
+                                                                </div>
+                                                                <span className={`text-2xl font-black ${selectedCategory === cat ? 'text-white' : 'text-[#3C507D]'}`}>{count}</span>
+                                                            </div>
+                                                            <div className="text-left space-y-1">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Condition</span>
+                                                                    <span className="text-[9px] font-bold opacity-40">{lastUpdate}</span>
+                                                                </div>
+                                                                <h4 className="text-xl font-black truncate max-w-[160px]" title={cat}>{cat}</h4>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </section>
 
@@ -516,6 +615,26 @@ const PatientDashboard = () => {
                                                 <MiniStat label="Height" val="172cm" />
                                                 <MiniStat label="Weight" val="64kg" />
                                             </div>
+
+                                            <div className="pt-8 border-t border-[#D9CBC2]/30 space-y-3">
+                                                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-black/40">
+                                                    <span>Last Updated</span>
+                                                    <span>Feb 9, 2026</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                                                    <span className="text-black/40">Data Source</span>
+                                                    <span className="text-[#112250] flex items-center gap-1 bg-[#F5F0E9] px-2 py-1 rounded border border-[#D9CBC2]">
+                                                        Self-Reported
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                                                    <span className="text-black/40">Audit Trail</span>
+                                                    <span className="text-[#3C507D]">Edited by Patient</span>
+                                                </div>
+                                                <button className="w-full py-3 mt-2 text-[10px] font-black uppercase tracking-widest text-[#3C507D] hover:bg-[#F5F0E9] rounded-xl transition-colors border border-transparent hover:border-[#D9CBC2]">
+                                                    Edit Profile Details
+                                                </button>
+                                            </div>
                                         </section>
 
                                         <section className="bg-white border-2 border-[#D9CBC2] p-10 space-y-8 rounded-[3rem]" >
@@ -564,32 +683,267 @@ const PatientDashboard = () => {
                                         </div>
                                     </div>
                                 ) : activeTab === 'history' ? (
-                                    <div className="xl:col-span-12 space-y-12">
-                                        <section className="bg-white p-10 border-2 border-[#D9CBC2] rounded-[3rem]">
-                                            <h3 className="text-2xl font-black mb-8">Longitudinal Medical History</h3>
-                                            <div className="space-y-0 relative before:absolute before:left-8 before:top-4 before:bottom-4 before:w-1 before:bg-[#D9CBC2]">
-                                                {filteredRecords.map((r, i) => (
-                                                    <div key={i} className="pl-20 py-8 relative">
-                                                        <div className="absolute left-6 top-10 w-5 h-5 rounded-full bg-[#112250] border-4 border-white shadow-md z-10" />
-                                                        <div className="p-8 bg-white border-2 border-[#D9CBC2] rounded-[2rem] shadow-sm hover:border-[#E0C58F] transition-colors">
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <p className="text-[10px] font-black text-[#112250] opacity-60 uppercase tracking-[0.2em]">{new Date(r.timestamp).toLocaleDateString()}</p>
-                                                                <span className="px-3 py-1 bg-[#F5F0E9] rounded-full text-[9px] font-black text-[#112250] border border-[#D9CBC2] uppercase tracking-widest">{r.category || "General"}</span>
+                                    <>
+                                        <div className="xl:col-span-8 space-y-12">
+                                            <section className="bg-white p-10 border-2 border-[#D9CBC2] rounded-[3rem]">
+                                                <h3 className="text-2xl font-black mb-8">Longitudinal Medical History</h3>
+                                                <div className="space-y-0 relative before:absolute before:left-8 before:top-4 before:bottom-4 before:w-1 before:bg-[#D9CBC2]/30">
+                                                    {filteredRecords.map((r, i) => (
+                                                        <div key={i} className="pl-20 py-8 relative group">
+                                                            <div className="absolute left-6 top-10 w-5 h-5 rounded-full bg-[#112250] border-4 border-white shadow-md z-10 group-hover:bg-[#E0C58F] transition-colors" />
+                                                            <div className="p-8 bg-white border-2 border-[#D9CBC2] rounded-[2rem] shadow-sm hover:border-[#112250] hover:shadow-lg transition-all">
+                                                                <div className="flex justify-between items-start mb-4">
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[10px] font-black text-black/40 uppercase tracking-[0.2em]">{new Date(r.timestamp).toLocaleDateString()}</div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${r.recordType === 'imaging' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                                                                r.recordType === 'genomics' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                                                    'bg-amber-50 text-amber-900 border-amber-100'
+                                                                                }`}>{r.recordType}</span>
+
+                                                                            <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest flex items-center gap-1 pl-2 border-l border-[#D9CBC2]">
+                                                                                Source: {r.recordType === 'document' ? 'Uploaded' : 'AI-Parsed'}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className="px-3 py-1 bg-[#F5F0E9] rounded-full text-[9px] font-black text-[#112250] border border-[#D9CBC2] uppercase tracking-widest">{r.category || "General"}</span>
+                                                                </div>
+                                                                <h5 className="text-lg font-black text-[#112250] mb-2 leading-tight">
+                                                                    {r.recordType === 'imaging' ? 'Radiological Analysis' : r.recordType === 'genomics' ? 'Genomic Variant Profile' : 'Clinical Consultation Note'}
+                                                                </h5>
+                                                                <p className="text-sm text-black/60 font-medium leading-relaxed mb-4">
+                                                                    {r.recordType === 'imaging' ? `Findings: ${r.moduleData.observations || r.moduleData.prediction}` :
+                                                                        r.recordType === 'genomics' ? `Genomic interpretation for ${r.moduleData.variants?.length || 0} variants.` :
+                                                                            `AI reasoning session: ${r.moduleData.symptomText?.substring(0, 100)}...`}
+                                                                </p>
                                                             </div>
-                                                            <h5 className="text-xl font-bold text-black mb-3">{r.recordType.toUpperCase()} EVENT</h5>
-                                                            <p className="text-sm text-black/60 font-medium leading-relaxed">
-                                                                {r.recordType === 'imaging' ? `Findings: ${r.moduleData.observations || r.moduleData.prediction}` :
-                                                                    r.recordType === 'genomics' ? `Genomic interpretation for ${r.moduleData.variants?.length || 0} variants.` :
-                                                                        `AI reasoning session: ${r.moduleData.symptomText?.substring(0, 100)}...`}
-                                                            </p>
+                                                        </div>
+                                                    ))}
+                                                    {filteredRecords.length === 0 && !isLoading && (
+                                                        <div className="py-32 flex flex-col items-center justify-center text-center space-y-6">
+                                                            <div className="w-20 h-20 bg-[#F5F0E9] rounded-full flex items-center justify-center">
+                                                                <HistoryIcon size={32} className="text-[#D9CBC2]" />
+                                                            </div>
+                                                            <div className="max-w-md mx-auto space-y-2">
+                                                                <h4 className="text-lg font-black text-black opacity-40 uppercase tracking-widest">Timeline Empty</h4>
+                                                                <p className="text-black/40 font-medium">Your medical history timeline will build automatically as records are added.</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </section>
+                                        </div>
+
+                                        {/* AI Insight Side Panel */}
+                                        <aside className="xl:col-span-4 space-y-6 sticky top-6">
+                                            <div className="bg-[#112250] text-white p-8 rounded-[2.5rem] relative overflow-hidden shadow-xl min-h-[500px]">
+                                                <div className="absolute -top-20 -right-20 w-64 h-64 bg-[#E0C58F] opacity-10 rounded-full blur-3xl pointer-events-none" />
+
+                                                <div className="relative z-10 space-y-8">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-2 bg-white/10 rounded-xl">
+                                                                <Brain size={20} className="text-[#E0C58F]" />
+                                                            </div>
+                                                            <h3 className="text-xl font-black">AI Insights</h3>
+                                                        </div>
+                                                        <span className="px-2 py-1 bg-[#E0C58F]/10 border border-[#E0C58F]/20 rounded text-[9px] font-black text-[#E0C58F] uppercase tracking-widest">Beta</span>
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        <div className="bg-white/5 border border-white/10 p-5 rounded-2xl space-y-2 hover:bg-white/10 transition-colors cursor-default group">
+                                                            <div className="flex items-start gap-3">
+                                                                <Activity size={16} className="text-[#E0C58F] mt-1 group-hover:scale-110 transition-transform" />
+                                                                <div>
+                                                                    <h4 className="text-sm font-bold text-white">Data Gap Detected</h4>
+                                                                    <p className="text-xs text-white/60 font-medium leading-relaxed mt-1">
+                                                                        No lipid panel results found in the last 18 months. Consider scheduling a routine check-up.
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="bg-white/5 border border-white/10 p-5 rounded-2xl space-y-2 hover:bg-white/10 transition-colors cursor-default group">
+                                                            <div className="flex items-start gap-3">
+                                                                <FileText size={16} className="text-sky-300 mt-1 group-hover:scale-110 transition-transform" />
+                                                                <div>
+                                                                    <h4 className="text-sm font-bold text-white">Record Consolidation</h4>
+                                                                    <p className="text-xs text-white/60 font-medium leading-relaxed mt-1">
+                                                                        3 recent entries from "General" folder could be categorized as "Cardiology".
+                                                                    </p>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                ))}
-                                                {filteredRecords.length === 0 && !isLoading && (
-                                                    <div className="p-20 text-center text-black/20 font-black uppercase tracking-widest">No historical data found in this category.</div>
-                                                )}
+
+                                                    <div className="pt-4 border-t border-white/10">
+                                                        <p className="text-[10px] text-white/40 font-medium leading-tight mb-4">
+                                                            * These insights are generated by analyzing patterns in your uploaded history. They are not medical diagnoses.
+                                                        </p>
+                                                        <button className="w-full py-4 bg-[#E0C58F] text-[#112250] rounded-xl font-black uppercase tracking-widest text-xs hover:bg-white transition-colors shadow-lg">
+                                                            Generate Full Report
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </section>
+                                        </aside>
+                                    </>
+                                ) : activeTab === 'reports' ? (
+                                    <div className="xl:col-span-12 space-y-8">
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <h3 className="text-2xl font-black text-[#112250] mb-2">Document Vault</h3>
+                                                <p className="text-sm font-medium text-black/60">Secure, encrypted storage for your clinical records.</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button className="px-5 py-3 bg-[#F5F0E9] border border-[#D9CBC2] rounded-xl text-xs font-black uppercase tracking-widest text-[#112250] hover:bg-white transition-colors flex items-center gap-2">
+                                                    <Upload size={14} className="rotate-180" /> Export Vault
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                            {/* Left Column: Upload & Feedback */}
+                                            <div className="space-y-6">
+                                                <FileUpload
+                                                    patientId={PATIENT_ID}
+                                                    onUploadSuccess={(data) => {
+                                                        // Simulate AI Extraction
+                                                        setLastUpload({
+                                                            name: data.filename || "Uploaded Document",
+                                                            type: "Lab Report",
+                                                            date: new Date().toLocaleDateString(),
+                                                            confidence: 92,
+                                                            preview: ["HbA1c: 5.7%", "Glucose: 98 mg/dL", "Cholesterol: 185 mg/dL"]
+                                                        });
+                                                        fetchPatientData();
+                                                    }}
+                                                />
+
+                                                {/* Patient Explanation Box */}
+                                                <div className="bg-[#F5F0E9]/50 border border-[#D9CBC2] p-5 rounded-2xl flex gap-3">
+                                                    <ShieldCheck size={20} className="text-[#112250] shrink-0 mt-0.5" />
+                                                    <p className="text-[10px] text-black/60 font-medium leading-relaxed">
+                                                        <span className="font-bold text-[#112250] block mb-1">Privacy Guarantee</span>
+                                                        Documents are encrypted and analyzed only to help organize and explain your medical information.
+                                                        Your data is never shared without your permission.
+                                                    </p>
+                                                </div>
+
+                                                {/* Post-Upload Feedback Panel */}
+                                                <AnimatePresence>
+                                                    {lastUpload && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, y: 20 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            exit={{ opacity: 0 }}
+                                                            className="bg-white border-2 border-[#112250] p-6 rounded-[2rem] shadow-xl relative overflow-hidden"
+                                                        >
+                                                            <div className="absolute top-0 right-0 p-16 bg-[#E0C58F] opacity-10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+                                                            <div className="flex items-center gap-2 mb-4">
+                                                                <div className="p-2 bg-[#112250] text-[#E0C58F] rounded-xl">
+                                                                    <Brain size={16} />
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="text-sm font-black text-[#112250]">AI Analysis Complete</h4>
+                                                                    <p className="text-[10px] font-bold text-[#3C507D] uppercase tracking-widest">Confidence Score: {lastUpload.confidence}%</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-3 mb-4">
+                                                                <div className="bg-[#F5F0E9] p-3 rounded-xl border border-[#D9CBC2]">
+                                                                    <div className="text-[10px] font-black uppercase tracking-widest text-[#112250]/40 mb-1">Detected Type</div>
+                                                                    <div className="font-bold text-[#112250] flex justify-between">
+                                                                        <span>{lastUpload.type}</span>
+                                                                        <span className="opacity-60">{lastUpload.date}</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="bg-white border border-[#D9CBC2] p-3 rounded-xl">
+                                                                    <div className="text-[10px] font-black uppercase tracking-widest text-[#112250]/40 mb-2">Key Values Extracted</div>
+                                                                    <div className="space-y-1">
+                                                                        {lastUpload.preview.map((val: string, i: number) => (
+                                                                            <div key={i} className="flex items-center gap-2 text-xs font-medium text-[#112250]">
+                                                                                <Check size={10} className="text-emerald-500" /> {val}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="bg-[#E0C58F]/20 border border-[#E0C58F] p-3 rounded-xl flex items-start gap-2">
+                                                                    <Info size={14} className="text-[#112250] mt-0.5" />
+                                                                    <div>
+                                                                        <div className="text-[10px] font-black uppercase tracking-widest text-[#112250]/60 mb-0.5">AI Suggestion</div>
+                                                                        <p className="text-xs font-bold text-[#112250]">Upload previous lipid panel for longitudinal trend analysis.</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <button
+                                                                onClick={() => setLastUpload(null)}
+                                                                className="w-full py-3 bg-[#112250] text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#1a2e6b] transition-colors shadow-lg"
+                                                            >
+                                                                Confirm & Save to Vault
+                                                            </button>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+
+                                            {/* Right Column: Files List */}
+                                            <div className="lg:col-span-2 space-y-6">
+                                                {/* Search & Filter */}
+                                                <div className="flex gap-4">
+                                                    <div className="flex-1 relative">
+                                                        <FileSearch size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30" />
+                                                        <input type="text" placeholder="Search documents..." className="w-full pl-10 pr-4 py-4 bg-white border border-[#D9CBC2] rounded-xl text-sm font-bold placeholder:font-medium outline-none focus:border-[#112250] transition-colors shadow-sm" />
+                                                    </div>
+                                                    <select className="bg-white border border-[#D9CBC2] rounded-xl px-4 py-3 text-sm font-bold text-[#112250] outline-none shadow-sm cursor-pointer hover:border-[#112250] transition-colors">
+                                                        <option>All Document Types</option>
+                                                        <option>Lab Reports</option>
+                                                        <option>Medical Imaging</option>
+                                                        <option>Clinical Notes</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* File Grid/List */}
+                                                <div className="grid gap-4">
+                                                    {records.filter(r => ['document', 'imaging', 'genomics'].includes(r.recordType)).length > 0 ? (
+                                                        records.filter(r => ['document', 'imaging', 'genomics'].includes(r.recordType)).map((r, i) => (
+                                                            <div key={i} className="bg-white border border-[#D9CBC2] p-5 rounded-2xl transition-all group flex items-start justify-between cursor-pointer hover:border-[#112250] hover:shadow-md">
+                                                                <div className="flex items-start gap-4">
+                                                                    <div className={`p-3 rounded-xl text-[#3C507D] group-hover:text-[#E0C58F] transition-colors ${r.recordType === 'imaging' ? 'bg-indigo-50 group-hover:bg-[#112250]' : r.recordType === 'genomics' ? 'bg-emerald-50 group-hover:bg-[#112250]' : 'bg-[#F5F0E9] group-hover:bg-[#112250]'}`}>
+                                                                        {r.recordType === 'imaging' ? <Activity size={20} /> : r.recordType === 'genomics' ? <Dna size={20} /> : <FileText size={20} />}
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="font-bold text-[#112250] mb-1 text-sm">{r.moduleData?.filename || `${r.recordType.charAt(0).toUpperCase() + r.recordType.slice(1)} Record`}</h4>
+                                                                        <div className="flex items-center gap-3 text-[10px] font-bold text-black/40 uppercase tracking-wider">
+                                                                            <span>{new Date(r.timestamp).toLocaleDateString()}</span>
+                                                                            <span>•</span>
+                                                                            <span>{r.category || "General"}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <button className="p-2 text-[#3C507D]/40 group-hover:text-[#112250] hover:bg-[#F5F0E9] rounded-lg transition-colors">
+                                                                    <ArrowRight size={18} />
+                                                                </button>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-12 text-center border-2 border-dashed border-[#D9CBC2] rounded-[2rem] flex flex-col items-center justify-center gap-4 group hover:border-[#112250] hover:bg-[#F5F0E9]/30 transition-all cursor-pointer">
+                                                            <div className="w-16 h-16 bg-[#F5F0E9] rounded-full flex items-center justify-center text-[#D9CBC2] group-hover:text-[#112250] transition-colors">
+                                                                <Folder size={32} />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-black/30 font-black uppercase tracking-widest text-sm group-hover:text-[#112250]/60 transition-colors">Vault is empty</h4>
+                                                                <p className="text-[10px] text-black/20 font-bold uppercase tracking-widest mt-1">Upload documents to verify secure storage</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : activeTab === 'aichat' ? (
                                     <div className="xl:col-span-12 space-y-10">
@@ -612,6 +966,16 @@ const PatientDashboard = () => {
                                                             : 'bg-[#F5F0E9] text-black border border-[#D9CBC2] rounded-bl-none'
                                                             }`}>
                                                             {m.text}
+                                                            {m.type === 'bot' && m.safety && (
+                                                                <div className="mt-4 pt-4 border-t border-[#D9CBC2]/40 flex justify-between items-center">
+                                                                    <div className="flex gap-2">
+                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-[#112250]/40">Confidence: {m.safety.confidence}</span>
+                                                                    </div>
+                                                                    <div className="text-[10px] font-medium text-[#112250]/60 italic">
+                                                                        {m.safety.disclaimer}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))}
@@ -628,6 +992,18 @@ const PatientDashboard = () => {
                                             </div>
 
                                             <div className="space-y-4">
+                                                {/* Structured Prompt Buttons */}
+                                                <div className="flex flex-wrap gap-2 justify-center">
+                                                    {["Explain a lab report", "Summarize my history", "Question for doctor"].map((prompt) => (
+                                                        <button
+                                                            key={prompt}
+                                                            onClick={() => setChatInput(prompt)}
+                                                            className="px-4 py-2 bg-white/50 border border-[#D9CBC2] rounded-xl text-[10px] font-black uppercase tracking-widest text-[#112250] hover:bg-white hover:border-[#112250] transition-colors"
+                                                        >
+                                                            {prompt}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                                 <div className="flex gap-4 items-center">
                                                     <label className="text-[10px] font-black uppercase tracking-widest text-black/40">Condition Folder:</label>
                                                     <select
@@ -755,6 +1131,96 @@ const PatientDashboard = () => {
                 )}
             </AnimatePresence>
 
+            {/* Security Details Modal */}
+            <AnimatePresence>
+                {showSecurityDetails && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setShowSecurityDetails(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white border-2 border-[#112250] rounded-[2rem] max-w-lg w-full shadow-2xl overflow-hidden relative"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="bg-[#112250] p-8 text-white flex justify-between items-start relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-32 bg-[#E0C58F] opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="p-2 bg-white/10 rounded-xl">
+                                            <ShieldCheck size={24} className="text-[#E0C58F]" />
+                                        </div>
+                                        <h3 className="text-2xl font-black">Security Status</h3>
+                                    </div>
+                                    <p className="text-[#D9CBC2] text-sm font-medium">Real-time environment verification </p>
+                                </div>
+                                <button onClick={() => setShowSecurityDetails(false)} className="relative z-10 p-2 hover:bg-white/10 rounded-xl transition-colors text-white/60 hover:text-white">
+                                    <XIcon size={24} />
+                                </button>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between p-4 bg-[#F5F0E9] rounded-2xl border border-[#D9CBC2]">
+                                        <div className="flex items-center gap-3">
+                                            <LockIcon size={20} className="text-[#112250]" />
+                                            <div>
+                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">Encryption</div>
+                                                <div className="text-sm font-bold text-[#112250]">AES-256 (At Rest) / TLS 1.3</div>
+                                            </div>
+                                        </div>
+                                        <div className="px-3 py-1 bg-[#112250] text-[#E0C58F] text-[10px] font-black uppercase tracking-widest rounded-full">Active</div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#D9CBC2]/50">
+                                        <div className="flex items-center gap-3">
+                                            <Activity size={20} className="text-[#3C507D]" />
+                                            <div>
+                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">Last Verified Access</div>
+                                                <div className="text-sm font-bold text-black">Today, 10:42 AM (Biometric)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#D9CBC2]/50">
+                                        <div className="flex items-center gap-3">
+                                            <Fingerprint size={20} className="text-[#3C507D]" />
+                                            <div>
+                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">Active Sessions</div>
+                                                <div className="text-sm font-bold text-black">1 (Current Device Only)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 border-t border-[#D9CBC2]/20">
+                                    <button
+                                        onClick={() => { setShowSecurityDetails(false); setActiveTab('history'); }}
+                                        className="w-full py-4 text-xs font-black uppercase tracking-widest text-[#112250] hover:bg-[#F5F0E9] rounded-xl transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        View Full Audit Logs <ArrowRight size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Persistent Medical Disclaimer */}
+            <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 bg-[#F5F0E9]/95 backdrop-blur-sm border-t border-[#D9CBC2] py-3 px-6 z-40 text-center lg:pl-32 transition-all">
+                <p className="text-[10px] md:text-xs font-medium text-black/60 leading-tight max-w-4xl mx-auto">
+                    <span className="font-bold text-[#112250] uppercase tracking-wider mr-1">Medical Disclaimer:</span>
+                    CareFusion AI provides informational and decision-support insights only.
+                    It does not provide medical diagnosis or treatment. Always consult a licensed healthcare professional.
+                </p>
+            </div>
+
             {/* Mobile Bottom Navigation - Unified PWA look */}
             <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#112250] border-t border-[#D9CBC2]/20 flex items-center justify-around px-6 z-50 pb-safe">
                 <button onClick={() => setActiveTab('overview')} className={`p-3 rounded-xl transition-all ${activeTab === 'overview' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
@@ -781,18 +1247,32 @@ const PatientDashboard = () => {
 // Sub-components
 const NavIcon = ({ icon, active, onClick, label }: { icon: React.ReactNode, active: boolean, onClick: () => void, label: string }) => (
     <div className="relative group cursor-pointer" onClick={onClick}>
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-[#E0C58F] text-black shadow-lg' : 'bg-transparent text-white/70 hover:text-[#E0C58F]'
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-[#E0C58F] text-black shadow-lg scale-110 ring-2 ring-[#E0C58F]/30' : 'bg-white/5 text-white/40 hover:text-[#E0C58F] hover:bg-white/10'
             }`}>
             {icon}
         </div>
-        <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#112250] text-[#E0C58F] text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-[100] shadow-xl border border-[#D9CBC2]/20">{label}</span>
+        <span className={`absolute left-full ml-6 px-4 py-2.5 bg-[#112250] text-[#E0C58F] text-[10px] font-black uppercase tracking-[0.2em] rounded-xl whitespace-nowrap z-[100] shadow-2xl border border-[#E0C58F]/20 transition-all duration-300 pointer-events-none ${active ? 'opacity-100 translate-x-0 translate-y-0' : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0'}`}>
+            {label}
+        </span>
     </div>
 );
 
-const HeaderStat = ({ label, val, color }: { label: string, val: string, color?: string }) => (
-    <div className="text-left md:text-right flex flex-col items-start md:items-end">
-        <div className="text-[10px] font-black text-black/40 uppercase tracking-[0.2em] mb-1">{label}</div>
+const HeaderStat = ({ label, val, color, tooltip }: { label: string, val: string, color?: string, tooltip?: string }) => (
+    <div className="text-left md:text-right flex flex-col items-start md:items-end group relative">
+        <div className="flex items-center gap-1.5 mb-1 justify-end">
+            <div className="text-[10px] font-black text-black/40 uppercase tracking-[0.2em]">{label}</div>
+            {tooltip && <Info size={12} className="text-black/40 cursor-help" />}
+        </div>
         <div className={`text-2xl font-black ${color || 'text-black'}`}>{val}</div>
+
+        {tooltip && (
+            <div className="absolute top-full right-0 mt-2 w-64 p-4 bg-[#112250] text-white text-xs font-medium rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-left border border-[#E0C58F]/30 leading-relaxed">
+                <div className="flex gap-2">
+                    <Info size={14} className="text-[#E0C58F] shrink-0 mt-0.5" />
+                    <span>{tooltip}</span>
+                </div>
+            </div>
+        )}
     </div>
 );
 
