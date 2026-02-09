@@ -318,7 +318,7 @@ const PatientDashboard = () => {
                     <div className="flex flex-col items-center gap-4 w-full">
                         <div className="h-[1px] w-8 bg-white/10" />
                         <div className="text-[8px] font-black uppercase tracking-[0.3em] text-[#E0C58F]/60">AI</div>
-                        <NavIcon icon={<MessagesSquare size={22} />} active={activeTab === 'aichat'} onClick={() => setActiveTab('aichat')} label="MedGemma" />
+                        <NavIcon icon={<MessagesSquare size={22} />} active={activeTab === 'aichat'} onClick={() => setActiveTab('aichat')} label="iChat" />
                     </div>
 
                     {/* SECURITY GROUP */}
@@ -366,7 +366,7 @@ const PatientDashboard = () => {
                             </button>
                             <div className="space-y-1">
                                 <h1 className="text-4xl md:text-5xl font-black text-black tracking-tight">
-                                    {activeTab === 'overview' ? 'Patient Portal' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                                    {activeTab === 'overview' ? 'Patient Portal' : activeTab === 'aichat' ? 'iChat' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                                 </h1>
 
                                 <p className="text-xl text-black/60 font-bold">Sarah Williams</p>
@@ -1038,166 +1038,170 @@ const PatientDashboard = () => {
                         </motion.div>
                     </AnimatePresence>
                 </div>
-            </main>
+            </main >
 
             {/* Bridge Configuration Modal */}
             <AnimatePresence>
-                {showBridgeSettings && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
-                    >
+                {
+                    showBridgeSettings && (
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white border-2 border-[#112250] rounded-[3rem] p-12 max-w-lg w-full shadow-2xl space-y-8"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
                         >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <RefreshCw className="text-[#112250] animate-spin-slow" />
-                                    <h3 className="text-2xl font-black text-black">Bridge Settings</h3>
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                className="bg-white border-2 border-[#112250] rounded-[3rem] p-12 max-w-lg w-full shadow-2xl space-y-8"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <RefreshCw className="text-[#112250] animate-spin-slow" />
+                                        <h3 className="text-2xl font-black text-black">Bridge Settings</h3>
+                                    </div>
+                                    <button onClick={() => setShowBridgeSettings(false)} className="p-2 hover:bg-[#F5F0E9] rounded-xl transition-all text-black">
+                                        <XIcon size={24} />
+                                    </button>
                                 </div>
-                                <button onClick={() => setShowBridgeSettings(false)} className="p-2 hover:bg-[#F5F0E9] rounded-xl transition-all text-black">
-                                    <XIcon size={24} />
-                                </button>
-                            </div>
 
-                            <p className="text-sm font-medium text-black/60 leading-relaxed">
-                                Configure the neural handshake pathway between this interface and your Clinical Storage Node.
-                            </p>
+                                <p className="text-sm font-medium text-black/60 leading-relaxed">
+                                    Configure the neural handshake pathway between this interface and your Clinical Storage Node.
+                                </p>
 
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-black/40">Clinical Node URL</label>
-                                    <input
-                                        type="text"
-                                        placeholder="https://clinical-node.loca.lt"
-                                        className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl p-4 text-sm font-bold outline-none focus:border-[#112250] transition-all text-black"
-                                        value={newTunnelUrl || getApiBase()}
-                                        onChange={(e) => setNewTunnelUrl(e.target.value)}
-                                    />
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-black/40">Clinical Node URL</label>
+                                        <input
+                                            type="text"
+                                            placeholder="https://clinical-node.loca.lt"
+                                            className="w-full bg-[#F5F0E9] border-2 border-[#D9CBC2] rounded-2xl p-4 text-sm font-bold outline-none focus:border-[#112250] transition-all text-black"
+                                            value={newTunnelUrl || getApiBase()}
+                                            onChange={(e) => setNewTunnelUrl(e.target.value)}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            if (newTunnelUrl) setApiBase(newTunnelUrl);
+                                            setShowBridgeSettings(false);
+                                            fetchPatientData();
+                                        }}
+                                        className="w-full bg-[#112250] text-[#E0C58F] py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
+                                    >
+                                        Verify Bridge
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            localStorage.removeItem('carefusion_tunnel_url');
+                                            setShowBridgeSettings(false);
+                                            fetchPatientData();
+                                        }}
+                                        className="w-full text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black transition-colors"
+                                    >
+                                        Reset to Default Protocol
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        if (newTunnelUrl) setApiBase(newTunnelUrl);
-                                        setShowBridgeSettings(false);
-                                        fetchPatientData();
-                                    }}
-                                    className="w-full bg-[#112250] text-[#E0C58F] py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
-                                >
-                                    Verify Bridge
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        localStorage.removeItem('carefusion_tunnel_url');
-                                        setShowBridgeSettings(false);
-                                        fetchPatientData();
-                                    }}
-                                    className="w-full text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black transition-colors"
-                                >
-                                    Reset to Default Protocol
-                                </button>
-                            </div>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )
+                }
+            </AnimatePresence >
 
             {/* Security Details Modal */}
             <AnimatePresence>
-                {showSecurityDetails && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
-                        onClick={() => setShowSecurityDetails(false)}
-                    >
+                {
+                    showSecurityDetails && (
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white border-2 border-[#112250] rounded-[2rem] max-w-lg w-full shadow-2xl overflow-hidden relative"
-                            onClick={(e) => e.stopPropagation()}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+                            onClick={() => setShowSecurityDetails(false)}
                         >
-                            <div className="bg-[#112250] p-8 text-white flex justify-between items-start relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-32 bg-[#E0C58F] opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                                <div className="relative z-10">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="p-2 bg-white/10 rounded-xl">
-                                            <ShieldCheck size={24} className="text-[#E0C58F]" />
-                                        </div>
-                                        <h3 className="text-2xl font-black">Security Status</h3>
-                                    </div>
-                                    <p className="text-[#D9CBC2] text-sm font-medium">Real-time environment verification </p>
-                                </div>
-                                <button onClick={() => setShowSecurityDetails(false)} className="relative z-10 p-2 hover:bg-white/10 rounded-xl transition-colors text-white/60 hover:text-white">
-                                    <XIcon size={24} />
-                                </button>
-                            </div>
-
-                            <div className="p-8 space-y-6">
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between p-4 bg-[#F5F0E9] rounded-2xl border border-[#D9CBC2]">
-                                        <div className="flex items-center gap-3">
-                                            <LockIcon size={20} className="text-[#112250]" />
-                                            <div>
-                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">Encryption</div>
-                                                <div className="text-sm font-bold text-[#112250]">AES-256 (At Rest) / TLS 1.3</div>
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                className="bg-white border-2 border-[#112250] rounded-[2rem] max-w-lg w-full shadow-2xl overflow-hidden relative"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="bg-[#112250] p-8 text-white flex justify-between items-start relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-32 bg-[#E0C58F] opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-white/10 rounded-xl">
+                                                <ShieldCheck size={24} className="text-[#E0C58F]" />
                                             </div>
+                                            <h3 className="text-2xl font-black">Security Status</h3>
                                         </div>
-                                        <div className="px-3 py-1 bg-[#112250] text-[#E0C58F] text-[10px] font-black uppercase tracking-widest rounded-full">Active</div>
+                                        <p className="text-[#D9CBC2] text-sm font-medium">Real-time environment verification </p>
                                     </div>
-
-                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#D9CBC2]/50">
-                                        <div className="flex items-center gap-3">
-                                            <Activity size={20} className="text-[#3C507D]" />
-                                            <div>
-                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">Last Verified Access</div>
-                                                <div className="text-sm font-bold text-black">Today, 10:42 AM (Biometric)</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#D9CBC2]/50">
-                                        <div className="flex items-center gap-3">
-                                            <Fingerprint size={20} className="text-[#3C507D]" />
-                                            <div>
-                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">Active Sessions</div>
-                                                <div className="text-sm font-bold text-black">1 (Current Device Only)</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="pt-6 border-t border-[#D9CBC2]/20">
-                                    <button
-                                        onClick={() => { setShowSecurityDetails(false); setActiveTab('history'); }}
-                                        className="w-full py-4 text-xs font-black uppercase tracking-widest text-[#112250] hover:bg-[#F5F0E9] rounded-xl transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        View Full Audit Logs <ArrowRight size={14} />
+                                    <button onClick={() => setShowSecurityDetails(false)} className="relative z-10 p-2 hover:bg-white/10 rounded-xl transition-colors text-white/60 hover:text-white">
+                                        <XIcon size={24} />
                                     </button>
                                 </div>
-                            </div>
+
+                                <div className="p-8 space-y-6">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between p-4 bg-[#F5F0E9] rounded-2xl border border-[#D9CBC2]">
+                                            <div className="flex items-center gap-3">
+                                                <LockIcon size={20} className="text-[#112250]" />
+                                                <div>
+                                                    <div className="text-xs font-black uppercase tracking-widest opacity-60">Encryption</div>
+                                                    <div className="text-sm font-bold text-[#112250]">AES-256 (At Rest) / TLS 1.3</div>
+                                                </div>
+                                            </div>
+                                            <div className="px-3 py-1 bg-[#112250] text-[#E0C58F] text-[10px] font-black uppercase tracking-widest rounded-full">Active</div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#D9CBC2]/50">
+                                            <div className="flex items-center gap-3">
+                                                <Activity size={20} className="text-[#3C507D]" />
+                                                <div>
+                                                    <div className="text-xs font-black uppercase tracking-widest opacity-60">Last Verified Access</div>
+                                                    <div className="text-sm font-bold text-black">Today, 10:42 AM (Biometric)</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#D9CBC2]/50">
+                                            <div className="flex items-center gap-3">
+                                                <Fingerprint size={20} className="text-[#3C507D]" />
+                                                <div>
+                                                    <div className="text-xs font-black uppercase tracking-widest opacity-60">Active Sessions</div>
+                                                    <div className="text-sm font-bold text-black">1 (Current Device Only)</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-6 border-t border-[#D9CBC2]/20">
+                                        <button
+                                            onClick={() => { setShowSecurityDetails(false); setActiveTab('history'); }}
+                                            className="w-full py-4 text-xs font-black uppercase tracking-widest text-[#112250] hover:bg-[#F5F0E9] rounded-xl transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            View Full Audit Logs <ArrowRight size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )
+                }
+            </AnimatePresence >
 
             {/* Persistent Medical Disclaimer */}
-            <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 bg-[#F5F0E9]/95 backdrop-blur-sm border-t border-[#D9CBC2] py-3 px-6 z-40 text-center lg:pl-32 transition-all">
+            < div className="fixed bottom-20 lg:bottom-0 left-0 right-0 bg-[#F5F0E9]/95 backdrop-blur-sm border-t border-[#D9CBC2] py-3 px-6 z-40 text-center lg:pl-32 transition-all" >
                 <p className="text-[10px] md:text-xs font-medium text-black/60 leading-tight max-w-4xl mx-auto">
                     <span className="font-bold text-[#112250] uppercase tracking-wider mr-1">Medical Disclaimer:</span>
                     CareFusion AI provides informational and decision-support insights only.
                     It does not provide medical diagnosis or treatment. Always consult a licensed healthcare professional.
                 </p>
-            </div>
+            </div >
 
             {/* Mobile Bottom Navigation - Unified PWA look */}
-            <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#112250] border-t border-[#D9CBC2]/20 flex items-center justify-around px-6 z-50 pb-safe">
+            < div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#112250] border-t border-[#D9CBC2]/20 flex items-center justify-around px-6 z-50 pb-safe" >
                 <button onClick={() => setActiveTab('overview')} className={`p-3 rounded-xl transition-all ${activeTab === 'overview' ? 'bg-[#E0C58F] text-black shadow-lg' : 'text-white/40 hover:text-[#E0C58F]'}`}>
                     <Activity size={24} />
                 </button>
@@ -1213,8 +1217,8 @@ const PatientDashboard = () => {
                 <Link to="/login" className="p-3 rounded-xl text-rose-400">
                     <LogOut size={24} />
                 </Link>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 
