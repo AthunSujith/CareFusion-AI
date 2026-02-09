@@ -657,32 +657,7 @@ const PatientDashboard = () => {
                                     </aside>
                                 </>
                             ) : (
-                                activeTab === 'reports' ? (
-                                    <div className="xl:col-span-12 space-y-8">
-                                        <section className="bg-white p-10 md:p-12 border-2 border-[#D9CBC2] rounded-[3rem] shadow-lg">
-                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                                                <div>
-                                                    <h2 className="text-3xl font-black text-black">Clinical Document Vault</h2>
-                                                    <p className="text-black/60 font-medium">Upload and manage your clinical records securely.</p>
-                                                </div>
-                                            </div>
-                                            <FileUpload patientId={PATIENT_ID} onUploadSuccess={() => { fetchPatientData(); fetchCategories(); }} />
-                                        </section>
-
-                                        <div className="grid gap-6">
-                                            {filteredRecords.map((r, i) => (
-                                                <RecordCard
-                                                    key={i}
-                                                    title={r.recordType === 'imaging' ? `Scan Analysis: ${r.moduleData.prediction}` : r.recordType === 'genomics' ? 'Genomic Sequence Manifest' : r.recordType === 'document' ? r.moduleData.filename : 'Symptom AI reasoning'}
-                                                    desc={`Clinical Record - ID: ${r._id.slice(-6)}`}
-                                                    date={new Date(r.timestamp).toLocaleDateString()}
-                                                    status={r.category || "Verified"}
-                                                    icon={r.recordType === 'imaging' ? <Activity size={24} /> : r.recordType === 'genomics' ? <Dna size={24} /> : <FileText size={24} />}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : activeTab === 'history' ? (
+                                activeTab === 'history' ? (
                                     <>
                                         <div className="xl:col-span-8 space-y-12">
                                             <section className="bg-white p-10 border-2 border-[#D9CBC2] rounded-[3rem]">
