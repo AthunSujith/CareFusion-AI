@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
@@ -37,15 +37,16 @@ async def root():
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-    return JSONResponse(status_code=204, content=None)
+    return Response(status_code=204)
 
 # Include Routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(patients.router, prefix="/api/v2", tags=["Patients"])
 app.include_router(ai.router, prefix="/api/v2/ai", tags=["AI"])
-from app.routers import admin, signup
+from app.routers import admin, signup, knowledge
 app.include_router(admin.router, prefix="/api/v2/admin", tags=["Admin Verification"])
 app.include_router(signup.router, prefix="/api/v2/signup", tags=["Public Registration"])
+app.include_router(knowledge.router, prefix="/api/v2/knowledge", tags=["Knowledge Management"])
 
 if __name__ == "__main__":
     import uvicorn

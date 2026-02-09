@@ -1,6 +1,8 @@
-from MY_Model import get_chat_model, audio_text, get_embedding_model, DEFAULT_LLM_MODEL, FINAL_LLM_MODEL
-from MY_Prompt import prompt, final_prompt_template
+from MY_Model import get_chat_model, audio_text, get_embedding_model, DEFAULT_LLM_MODEL, FINAL_LLM_MODEL, CARL_ADVISOR_MODEL
+from MY_Prompt import prompt, final_prompt_template, carl_advisor_template
 from MY_Format import parser, SymptomModel, FinalBaseModel
+from CARL_Questions import CARL_QUESTIONS, get_flattened_questions
+from concurrent.futures import ThreadPoolExecutor
 import time
 
 # Single import for run_custom_multiquery_retrieval (adjust path if needed)
@@ -87,6 +89,89 @@ def _extract_json_substring(s: str) -> Optional[str]:
         except Exception:
             return None
     return None
+
+
+def run_carl_advisory_loop(transcription: str, symptoms: List[str], history: str) -> List[Dict[str, Any]]:
+    """
+    Executes the 18-question CARL Clinical Advisory Loop.
+    Answers are grounded in patient transcript and admin-uploaded medical knowledge.
+    """
+    questions = get_flattened_questions()
+    results = []
+
+    # Instantiate LLM and chain for CARL (Grounded in MedGemma as requested)
+    try:
+        carl_llm = get_chat_model(model=FINAL_LLM_MODEL, temperature=0.2, max_tokens=2048)
+        carl_chain = carl_advisor_template | carl_llm
+    except Exception as e:
+        print(f"Error instantiating CARL LLM: {e}")
+        return []
+
+    def answer_question(q_data):
+        q_id = q_data["question_id"]
+        q_text = q_data["question_text"]
+        cat_id = q_data["category_id"]
+        cat_name = q_data["category_name"]
+
+        print(f" > Answering CARL {q_id}: {q_text[:50]}...")
+
+        # 1. Targeted retrieval for this specific question
+        try:
+            # We use the question text as the primary query for the vector store
+            docs = run_custom_multiquery_retrieval(
+                transcription,
+                symptoms,
+                None,  # duration not strictly needed for retrieval here
+                [],    # red_flags handled by specific question text
+                q_text,
+                num_queries=2, # reduced for speed in loop
+                k_per_query=3
+            )
+            # Flatten and context-build
+            context = ""
+            if docs:
+                context_parts = []
+                for d in docs:
+                    page_content = getattr(d, "page_content", str(d))
+                    meta = getattr(d, "metadata", {})
+                    source = meta.get("source") or meta.get("file") or "Admin Knowledge"
+                    context_parts.append(f"[SOURCE: {source}]\n{page_content}")
+                context = "\n\n".join(context_parts)
+            else:
+                context = "No relevant admin-uploaded medical knowledge found for this question."
+        except Exception as e:
+            print(f"   [!] Retrieval failed for {q_id}: {e}")
+            context = "Retrieval error: Could not access admin knowledge base."
+
+        # 2. Invoke CARL reasoning
+        try:
+            response = carl_chain.invoke({
+                "question": q_text,
+                "category": cat_name,
+                "transcript": transcription,
+                "symptoms": ", ".join(symptoms),
+                "context": context
+            })
+            answer_text = _result_to_text(response)
+        except Exception as e:
+            answer_text = f"Reasoning failed for this question: {str(e)}"
+
+        return {
+            "id": q_id,
+            "category": cat_id,
+            "category_name": cat_name,
+            "question": q_text,
+            "answer": answer_text
+        }
+
+    # Execute questions in parallel (small pool to not overload Ollama)
+    with Timer(f"CARL 18-Question Loop"):
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            results = list(executor.map(answer_question, questions))
+
+    # Sort results by ID
+    results.sort(key=lambda x: int(x["id"][1:]))
+    return results
 
 
 def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = None, history: Optional[str] = None) -> str:
@@ -288,15 +373,45 @@ def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = No
                 print("Summarized context length (chars):", len(summarized_context))
 
         # 8) Final prompt -> LLM (MedGemma for final synthesis)
-        winning_prediction = "No definitive clinical hypothesis identified."
+        # 8) Extract Top 5 Predictions across all buckets
+        top_predictions_list = []
         if isinstance(result_prediction, dict):
+            top_map = result_prediction.get("top_diseases_by_bucket", {})
+            # Flatten all items from all buckets
+            temp_preds = {}
+            for bucket_name, diseases in top_map.items():
+                for d in diseases:
+                    name = d.get("disease")
+                    prob = d.get("prob", 0.0)
+                    if name not in temp_preds or prob > temp_preds[name]["prob"]:
+                        temp_preds[name] = {
+                            "disease": name,
+                            "prob": prob,
+                            "bucket": bucket_name
+                        }
+            
+            all_preds = list(temp_preds.values())
+            # Sort by probability descending
+            all_preds.sort(key=lambda x: x["prob"], reverse=True)
+            top_predictions_list = all_preds[:5]
+
+        winning_prediction = "No definitive clinical hypothesis identified."
+        top_5_summary = "No top predictions available."
+        
+        if top_predictions_list:
+            # Format the summary for the prompt
+            summary_parts = []
+            for i, p in enumerate(top_predictions_list, 1):
+                summary_parts.append(f"{i}. {p['disease']} ({p['prob']:.2%}, Bucket: {p['bucket']})")
+            top_5_summary = "\n".join(summary_parts)
+            
+            # Use the top 1 as the primary "winning" prediction for legacy compatibility in prompt
+            lead = top_predictions_list[0]
+            winning_prediction = f"{lead['disease']} (Context: {lead['bucket']}, Confidence: {lead['prob']:.2%})"
+        elif isinstance(result_prediction, dict):
+            # Fallback if top_5 is empty but result has a rejection reason
             final_info = result_prediction.get("final", {})
-            if final_info.get("accepted"):
-                disease = final_info.get("disease")
-                conf = final_info.get("confidence", 0.0)
-                bucket = final_info.get("bucket")
-                winning_prediction = f"{disease} (Context: {bucket}, Confidence: {conf:.2%})"
-            else:
+            if not final_info.get("accepted"):
                 winning_prediction = f"Hypothesis Rejected: {final_info.get('decision_reason', 'Below safety threshold')}"
 
         final_text = ""
@@ -312,6 +427,7 @@ def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = No
                     "duration": model_output.duration,
                     "red_flags": model_output.red_flags,
                     "disease_prediction": winning_prediction,
+                    "top_5_predictions": top_5_summary,
                     "user_query": transcription,
                     "history": history or "No previous medical history available."
                 })
@@ -321,9 +437,19 @@ def pipeline(audio_path: Optional[str] = None, transcription: Optional[str] = No
             print(f"Final chain invoke failed ({type(e).__name__}): {e}")
             final_text = "Clinical synthesis timed out or failed. Please review raw symptoms and prediction."
 
+        # 9) NEW: Run CARL Clinical Advisory Loop
+        carl_results = []
+        try:
+            carl_results = run_carl_advisory_loop(transcription, model_output.symptoms, history or "")
+        except Exception as e:
+            print(f"CARL Advisory Loop failed: {e}")
+            traceback.print_exc()
+
         return {
             "symptoms": model_output.symptoms,
             "recommendation": winning_prediction,
+            "top_5_predictions": top_predictions_list,
+            "carl_advisory_report": carl_results,
             "ai_response": final_text
         }
 

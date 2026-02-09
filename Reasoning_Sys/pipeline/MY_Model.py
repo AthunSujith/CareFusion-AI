@@ -32,9 +32,9 @@ def audio_text(
 
 DEFAULT_LLM_MODEL = "llama3.2:3b"
 FINAL_LLM_MODEL = "MedAIBase/MedGemma1.5:4b"
+CARL_ADVISOR_MODEL = "MedAIBase/MedGemma1.5:4b"  # Specialized for clinical advisory loop
+DEFAULT_MAX_TOKENS = 2048
 DEFAULT_TEMPERATURE = 0.7
-DEFAULT_MAX_TOKENS = 4096
-
 
 # --- Factory Function ---
 
@@ -47,26 +47,17 @@ def get_chat_model(
 ) -> ChatOllama:
     """
     Create and return a production-configured ChatOllama instance.
-
-    Constraints:
-    - Model defaults to llama3.2:3b or MedAIBase/MedGemma1.5:4b for final synthesis
-    - Caller may only adjust safe decoding parameters
     """
 
     if not 0.0 <= temperature <= 2.0:
         raise ValueError(f"Invalid temperature: {temperature}")
 
-    if max_tokens <= 0:
-        raise ValueError(f"max_tokens must be positive, got {max_tokens}")
-
     import requests
     try:
-        # Quick check if Ollama is responsive
         requests.get("http://127.0.0.1:11434/api/tags", timeout=5)
     except Exception:
         raise RuntimeError(
-            "Ollama server is not running on http://127.0.0.1:11434. "
-            "Please ensure Ollama is installed and the service is started (run 'ollama serve')."
+            "Ollama server is not running. Please ensure Ollama is started."
         )
 
     return ChatOllama(
@@ -74,7 +65,8 @@ def get_chat_model(
         temperature=temperature,
         num_predict=max_tokens,
         timeout=timeout,
-        num_ctx=8192, # Faster context handling
+        num_ctx=2048,     # Further reduced to 2048 to force more layers onto GPU VRAM
+        num_thread=8,
     )
     
     # example usage of the model function

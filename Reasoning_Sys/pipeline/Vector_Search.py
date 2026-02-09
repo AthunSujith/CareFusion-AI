@@ -40,8 +40,8 @@ from MY_Model import get_chat_model, DEFAULT_LLM_MODEL, EMBEDDING_MODEL_NAME
 # --- CONFIG: make sure these match your index builder ---
 EMBEDDING_MODEL = EMBEDDING_MODEL_NAME
 OLLAMA_BASE_URL = "http://127.0.0.1:11434"
-CHROMA_DB_PATH = r"C:\CareFusion-AI\chroma_external_bge_m3"
-COLLECTION_NAME = "external_bge_m3"
+CHROMA_DB_PATH = r"C:\CareFusion-AI\vector of external\chroma_db_bge_m3"
+COLLECTION_NAME = "Daily Knowledge"
 
 # Helper: format lists
 def _format_list(items: Sequence[str], empty_placeholder: str = "None") -> str:

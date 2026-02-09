@@ -54,6 +54,8 @@ const AdminDashboard = () => {
     const [reason, setReason] = useState('');
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
     const [systemSettings, setSystemSettings] = useState<any>(null);
+    const [knowledgeStatus, setKnowledgeStatus] = useState<any>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Mock Login Check
     useEffect(() => {
@@ -64,8 +66,67 @@ const AdminDashboard = () => {
             if (activeTab === 'queue') fetchQueue();
             if (activeTab === 'audit') fetchAuditLogs();
             if (activeTab === 'settings') fetchSettings();
+            if (activeTab === 'knowledge') fetchKnowledgeStatus();
         }
     }, [activeTab, subTab]); // Refetch when switching tabs
+
+    const fetchKnowledgeStatus = async () => {
+        try {
+            const token = localStorage.getItem('admin_token');
+            const response = await fetch(`${getApiBase()}/api/v2/knowledge/status`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'bypass-tunnel-reminder': 'true'
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setKnowledgeStatus(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch knowledge status", error);
+        }
+    };
+
+    const handleKnowledgeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.endsWith('.pdf')) {
+            alert("Only PDF files are supported for clinical knowledge.");
+            return;
+        }
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const token = localStorage.getItem('admin_token');
+            const response = await fetch(`${getApiBase()}/api/v2/knowledge/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'bypass-tunnel-reminder': 'true'
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                alert("Document successfully ingested into 'Daily Knowledge' vector store.");
+                fetchKnowledgeStatus();
+            } else {
+                const error = await response.json();
+                alert(`Upload failed: ${error.detail || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error("Knowledge upload failed", error);
+            alert("Network error during upload.");
+        } finally {
+            setIsUploading(false);
+            event.target.value = ''; // Reset input
+        }
+    };
 
     const fetchQueue = async () => {
         try {
@@ -250,6 +311,13 @@ const AdminDashboard = () => {
                     >
                         <Lock className="w-5 h-5" />
                         Security Settings
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('knowledge')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'knowledge' ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-900'}`}
+                    >
+                        <Activity className="w-5 h-5" />
+                        Daily Knowledge
                     </button>
                 </nav>
 
@@ -483,6 +551,87 @@ const AdminDashboard = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'knowledge' && (
+                    <>
+                        <header className="flex justify-between items-center mb-8">
+                            <div>
+                                <h1 className="text-2xl font-bold text-white mb-2">Daily Knowledge Management</h1>
+                                <p className="text-slate-400">Update the clinical vector store with external medical documentation</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <label className={`cursor-pointer px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all ${isUploading ? 'bg-slate-800 text-slate-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20'}`}>
+                                    {isUploading ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                            Ingesting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FileText className="w-5 h-5" />
+                                            Add Document
+                                        </>
+                                    )}
+                                    <input type="file" className="hidden" accept=".pdf" onChange={handleKnowledgeUpload} disabled={isUploading} />
+                                </label>
+                            </div>
+                        </header>
+
+                        {knowledgeStatus && (
+                            <div className="grid grid-cols-3 gap-6 mb-8">
+                                <div className="bg-slate-800/50 border border-slate-700/50 p-6 rounded-2xl">
+                                    <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">Vector Count</p>
+                                    <h3 className="text-4xl font-black text-white">{knowledgeStatus.vector_count?.toLocaleString()}</h3>
+                                    <p className="text-xs text-slate-500 mt-2">Individual embeddings in {knowledgeStatus.collection_name}</p>
+                                </div>
+                                <div className="bg-slate-800/50 border border-slate-700/50 p-6 rounded-2xl">
+                                    <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">Document Scale</p>
+                                    <h3 className="text-4xl font-black text-white">{knowledgeStatus.document_count}</h3>
+                                    <p className="text-xs text-slate-500 mt-2">PDF sources currently indexed</p>
+                                </div>
+                                <div className="bg-slate-800/50 border border-slate-700/50 p-6 rounded-2xl">
+                                    <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-2">Last Update</p>
+                                    <h3 className="text-xl font-bold text-white mt-2">
+                                        {knowledgeStatus.last_upload ? new Date(knowledgeStatus.last_upload).toLocaleDateString() : 'Never'}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        {knowledgeStatus.last_upload ? new Date(knowledgeStatus.last_upload).toLocaleTimeString() : 'No activity'}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-indigo-600/10 border border-indigo-500/20 p-8 rounded-3xl mb-8">
+                            <h3 className="text-xl font-bold text-white mb-4">Clinical Reasoning Context</h3>
+                            <p className="text-slate-400 leading-relaxed mb-6">
+                                The documents you upload here form the "Primary Evidence" for the Clinical Advisory Reasoning Layer (CARL).
+                                When doctors use the Symptom AI, the system will search these specific documents to generate evidence-bound insights.
+                            </p>
+                            <div className="flex gap-4">
+                                <div className="flex-1 bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                                    <div className="flex items-center gap-2 text-indigo-400 font-bold mb-2">
+                                        <Check className="w-4 h-4" /> Ground Truth
+                                    </div>
+                                    <p className="text-xs text-slate-500">Retrieval is strictly limited to these admin-verified sources.</p>
+                                </div>
+                                <div className="flex-1 bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                                    <div className="flex items-center gap-2 text-emerald-400 font-bold mb-2">
+                                        <Activity className="w-4 h-4" /> Version Control
+                                    </div>
+                                    <p className="text-xs text-slate-500">Every upload triggers a real-time re-indexing of the vector space.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-12 text-center">
+                            <Shield className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                            <h3 className="text-lg font-bold text-white mb-2">Knowledge Synchronization Active</h3>
+                            <p className="text-slate-500 max-w-md mx-auto">
+                                All clinical documents are processed using bge-m3 embeddings and stored in a secure local vector database.
+                            </p>
                         </div>
                     </>
                 )}
