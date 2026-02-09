@@ -6,6 +6,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import PatientDashboard from './pages/PatientDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
+import Research from './pages/Research';
 import './index.css';
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
       <div className="min-h-screen">
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/research" element={<Research />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/admin/login" element={<AdminLogin />} />

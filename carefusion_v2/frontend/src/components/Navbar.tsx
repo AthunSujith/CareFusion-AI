@@ -29,16 +29,20 @@ const Navbar = () => {
                     {/* Desktop Menu - High Contrast */}
                     <div className="hidden md:flex items-center gap-10">
                         <div className="flex items-center gap-8 text-black">
-                            <a href="/#information" className="text-sm font-black text-black uppercase tracking-widest hover:opacity-100 transition-all relative group">
-                                Information
+                            <a href="/#platform" className="text-sm font-black text-black uppercase tracking-widest hover:opacity-100 transition-all relative group">
+                                Platform
                                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#E0C58F] transition-all group-hover:w-full" />
                             </a>
-                            <a href="/#research" className="text-sm font-black text-black uppercase tracking-widest hover:opacity-100 transition-all relative group">
-                                Research
+                            <a href="/#how-it-works" className="text-sm font-black text-black uppercase tracking-widest hover:opacity-100 transition-all relative group">
+                                How It Works
                                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#E0C58F] transition-all group-hover:w-full" />
                             </a>
-                            <a href="/#security" className="text-sm font-black text-black uppercase tracking-widest hover:opacity-100 transition-all relative group">
-                                Security
+                            <Link to="/research" className="text-sm font-black text-black uppercase tracking-widest hover:opacity-100 transition-all relative group">
+                                Validation
+                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#E0C58F] transition-all group-hover:w-full" />
+                            </Link>
+                            <a href="/#trust" className="text-sm font-black text-black uppercase tracking-widest hover:opacity-100 transition-all relative group">
+                                Trust & Compliance
                                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#E0C58F] transition-all group-hover:w-full" />
                             </a>
                         </div>
@@ -70,9 +74,10 @@ const Navbar = () => {
                         exit={{ opacity: 0, scale: 0.95 }}
                         className="md:hidden absolute top-28 left-6 right-6 glass-card bg-white border-[#D9CBC2] p-8 flex flex-col gap-6 shadow-2xl"
                     >
-                        <a href="/#information" onClick={() => setIsOpen(false)} className="text-2xl font-black text-black uppercase tracking-tight">Information</a>
-                        <a href="/#research" onClick={() => setIsOpen(false)} className="text-2xl font-black text-black uppercase tracking-tight">Research</a>
-                        <a href="/#security" onClick={() => setIsOpen(false)} className="text-2xl font-black text-black uppercase tracking-tight">Security</a>
+                        <a href="/#platform" onClick={() => setIsOpen(false)} className="text-2xl font-black text-black uppercase tracking-tight">Platform</a>
+                        <a href="/#how-it-works" onClick={() => setIsOpen(false)} className="text-2xl font-black text-black uppercase tracking-tight">How It Works</a>
+                        <Link to="/research" onClick={() => setIsOpen(false)} className="text-2xl font-black text-black uppercase tracking-tight">Validation</Link>
+                        <a href="/#trust" onClick={() => setIsOpen(false)} className="text-2xl font-black text-black uppercase tracking-tight">Trust & Compliance</a>
                         <hr className="border-[#D9CBC2]/20" />
                         <Link to="/login" className="btn-premium btn-secondary justify-center py-4 text-black font-black uppercase tracking-widest text-sm italic">Sign In</Link>
                         <Link to="/login" className="btn-premium btn-primary justify-center py-4 font-black uppercase tracking-widest text-sm">Open Lab</Link>
