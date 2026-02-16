@@ -187,9 +187,6 @@ def run_custom_multiquery_retrieval(
         except UnicodeEncodeError:
             # Fallback for environments where UTF-8 reconfigure isn't enough
             print(content[:1000].encode('ascii', errors='replace').decode('ascii'))
-            
-        if getattr(doc, "metadata", None):
-            print("Metadata:", doc.metadata)
     return docs
 
 if __name__ == "__main__":

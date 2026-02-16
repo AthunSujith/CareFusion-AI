@@ -53,12 +53,23 @@ def get_chat_model(
         raise ValueError(f"Invalid temperature: {temperature}")
 
     import requests
-    try:
-        requests.get("http://127.0.0.1:11434/api/tags", timeout=5)
-    except Exception:
-        raise RuntimeError(
-            "Ollama server is not running. Please ensure Ollama is started."
-        )
+    import time
+    
+    # Robust check for Ollama server with retries
+    max_retries = 2
+    for attempt in range(max_retries + 1):
+        try:
+            # Increased timeout to 15 seconds for slower system startup
+            requests.get("http://127.0.0.1:11434/api/tags", timeout=15)
+            break
+        except (requests.exceptions.RequestException, Exception) as e:
+            if attempt < max_retries:
+                time.sleep(2) # brief wait before retry
+                continue
+            raise RuntimeError(
+                f"Ollama server is unresponsive or not running (Error: {type(e).__name__}). "
+                "Please ensure the Ollama application is active and not hung."
+            )
 
     return ChatOllama(
         model=model,
